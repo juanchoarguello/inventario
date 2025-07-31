@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -20,6 +20,14 @@ interface Usuario {
   fecha_creacion: string
 }
 
+interface UserData {
+  username: string
+  password: string
+  nombre_completo: string
+  email: string
+  rol: string
+}
+
 interface GestionUsuariosProps {
   token: string
 }
@@ -32,11 +40,7 @@ export function GestionUsuarios({ token }: GestionUsuariosProps) {
   const [editingUser, setEditingUser] = useState<Usuario | null>(null)
   const [error, setError] = useState("")
 
-  useEffect(() => {
-    loadUsuarios()
-  }, [])
-
-  const loadUsuarios = async () => {
+  const loadUsuarios = useCallback(async () => {
     try {
       const response = await fetch("/api/usuarios", {
         headers: {
@@ -51,14 +55,18 @@ export function GestionUsuarios({ token }: GestionUsuariosProps) {
       } else {
         setError("Error al cargar usuarios")
       }
-    } catch (err) {
+    } catch {
       setError("Error de conexión")
     } finally {
       setLoading(false)
     }
-  }
+  }, [token])
 
-  const handleCreateUser = async (userData: any) => {
+  useEffect(() => {
+    loadUsuarios()
+  }, [loadUsuarios])
+
+  const handleCreateUser = async (userData: UserData) => {
     try {
       const response = await fetch("/api/usuarios", {
         method: "POST",
@@ -78,7 +86,7 @@ export function GestionUsuarios({ token }: GestionUsuariosProps) {
       } else {
         return { success: false, error: data.error }
       }
-    } catch (err) {
+    } catch {
       return { success: false, error: "Error de conexión" }
     }
   }
@@ -103,7 +111,7 @@ export function GestionUsuarios({ token }: GestionUsuariosProps) {
       } else {
         return { success: false, error: data.error }
       }
-    } catch (err) {
+    } catch {
       return { success: false, error: "Error de conexión" }
     }
   }
@@ -127,7 +135,7 @@ export function GestionUsuarios({ token }: GestionUsuariosProps) {
         const data = await response.json()
         setError(data.error || "Error al eliminar usuario")
       }
-    } catch (err) {
+    } catch {
       setError("Error de conexión")
     }
   }

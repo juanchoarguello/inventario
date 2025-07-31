@@ -37,10 +37,10 @@ export function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps) {
       if (response.ok) {
         setSuccess(true)
       } else {
-        const error = await response.json()
-        setError(error.error)
+        const errorData = await response.json()
+        setError(errorData.error)
       }
-    } catch (error) {
+    } catch {
       setError("Error de conexión con el servidor")
     } finally {
       setLoading(false)

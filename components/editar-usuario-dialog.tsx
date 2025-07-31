@@ -48,7 +48,8 @@ export function EditarUsuarioDialog({ user, onSave, onClose }: EditarUsuarioDial
       } else {
         setError(result.error || "Error al actualizar usuario")
       }
-    } catch (err) {
+    } catch (error) {
+      console.error("Error updating user:", error)
       setError("Error de conexión con el servidor")
     } finally {
       setLoading(false)

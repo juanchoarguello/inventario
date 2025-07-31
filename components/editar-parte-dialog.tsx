@@ -54,7 +54,8 @@ export function EditarParteDialog({ part, onSave, onClose }: EditarParteDialogPr
       } else {
         setError(result.error || "Error al actualizar la parte")
       }
-    } catch (err) {
+    } catch (error) {
+      console.error("Error updating part:", error)
       setError("Error de conexión con el servidor")
     } finally {
       setLoading(false)

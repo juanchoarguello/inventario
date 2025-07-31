@@ -75,8 +75,7 @@ export async function authenticateUser(username: string, password: string): Prom
 
     if (!isValidPassword) return null
 
-    // Remover password_hash del objeto retornado
-    const { password_hash: _, ...userWithoutPassword } = user
+    const { password_hash, ...userWithoutPassword } = user
     return userWithoutPassword
   } catch (error) {
     console.error("Error authenticating user:", error)

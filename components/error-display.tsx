@@ -27,7 +27,6 @@ interface ErrorDisplayProps {
 }
 
 export function ErrorDisplay({ error, onRetry, onGoHome, showDetails = false }: ErrorDisplayProps) {
-  // Si es un string, convertir a error básico
   const errorObj: AppError =
     typeof error === "string"
       ? {
@@ -119,14 +118,14 @@ export function ErrorDisplay({ error, onRetry, onGoHome, showDetails = false }: 
           {getErrorIcon(errorObj.type)}
           <div>
             <CardTitle className="text-lg">¡Oops! Algo salió mal</CardTitle>
-            <Badge variant={getErrorVariant(errorObj.type) as any} className="mt-1">
+            <Badge variant={getErrorVariant(errorObj.type) as "default" | "destructive"} className="mt-1">
               {errorObj.type}
             </Badge>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Alert variant={getErrorVariant(errorObj.type) as any}>
+        <Alert variant={getErrorVariant(errorObj.type) as "default" | "destructive"}>
           <AlertDescription className="text-base">{errorObj.userMessage}</AlertDescription>
         </Alert>
 
@@ -193,7 +192,6 @@ export function ErrorDisplay({ error, onRetry, onGoHome, showDetails = false }: 
   )
 }
 
-// Componente para errores inline en formularios
 interface FieldErrorProps {
   error?: AppError | string
   field?: string
@@ -212,7 +210,6 @@ export function FieldError({ error, field }: FieldErrorProps) {
         }
       : error
 
-  // Solo mostrar si el error es para este campo o no tiene campo específico
   if (errorObj.field && field && errorObj.field !== field) return null
 
   return (
@@ -223,38 +220,46 @@ export function FieldError({ error, field }: FieldErrorProps) {
   )
 }
 
-// Hook para manejar errores
 export function useErrorHandler() {
-  const handleError = (error: any): AppError => {
+  const handleError = (error: unknown): AppError => {
     console.error("Error caught:", error)
 
-    // Si ya es un CustomError, devolverlo como AppError
-    if (error.name === "CustomError") {
+    if (error && typeof error === "object" && "name" in error && error.name === "CustomError") {
+      const customError = error as {
+        type: ErrorType
+        message: string
+        userMessage: string
+        field?: string
+        code?: string
+        details?: Record<string, unknown>
+      }
       return {
-        type: error.type,
-        message: error.message,
-        userMessage: error.userMessage,
-        field: error.field,
-        code: error.code,
-        details: error.details,
+        type: customError.type,
+        message: customError.message,
+        userMessage: customError.userMessage,
+        field: customError.field,
+        code: customError.code,
+        details: customError.details,
       }
     }
 
-    // Error de red
-    if (error.name === "TypeError" && error.message.includes("fetch")) {
-      return {
-        type: "NETWORK" as ErrorType,
-        message: error.message,
-        userMessage: "Error de conexión. Verifica tu conexión a internet e intenta nuevamente",
+    if (error && typeof error === "object" && "name" in error && error.name === "TypeError") {
+      const typeError = error as { message: string }
+      if (typeError.message.includes("fetch")) {
+        return {
+          type: "NETWORK" as ErrorType,
+          message: typeError.message,
+          userMessage: "Error de conexión. Verifica tu conexión a internet e intenta nuevamente",
+        }
       }
     }
 
-    // Error genérico
+    const genericError = error as { message?: string; userMessage?: string }
     return {
       type: "CLIENT" as ErrorType,
-      message: error.message || "Unknown error",
-      userMessage: error.userMessage || "Ha ocurrido un error inesperado. Intenta nuevamente",
-      details: error,
+      message: genericError.message || "Unknown error",
+      userMessage: genericError.userMessage || "Ha ocurrido un error inesperado. Intenta nuevamente",
+      details: error as Record<string, unknown>,
     }
   }
 

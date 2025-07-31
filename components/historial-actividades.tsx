@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,8 +13,8 @@ interface HistorialItem {
   accion: string
   tabla: string
   registro_id: number | null
-  datos_anteriores: any
-  datos_nuevos: any
+  datos_anteriores: Record<string, unknown> | null
+  datos_nuevos: Record<string, unknown> | null
   ip_address: string
   fecha_accion: string
 }
@@ -29,11 +29,7 @@ export function HistorialActividades({ token }: HistorialActividadesProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [error, setError] = useState("")
 
-  useEffect(() => {
-    loadHistorial()
-  }, [])
-
-  const loadHistorial = async () => {
+  const loadHistorial = useCallback(async () => {
     try {
       const response = await fetch("/api/historial", {
         headers: {
@@ -48,12 +44,16 @@ export function HistorialActividades({ token }: HistorialActividadesProps) {
       } else {
         setError("Error al cargar el historial")
       }
-    } catch (err) {
+    } catch {
       setError("Error de conexión")
     } finally {
       setLoading(false)
     }
-  }
+  }, [token])
+
+  useEffect(() => {
+    loadHistorial()
+  }, [loadHistorial])
 
   const filteredHistorial = historial.filter(
     (item) =>

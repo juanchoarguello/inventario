@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -21,11 +21,7 @@ export function UserManagement({ token }: UserManagementProps) {
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [editingUser, setEditingUser] = useState<Usuario | null>(null)
 
-  useEffect(() => {
-    loadUsers()
-  }, [])
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -48,7 +44,11 @@ export function UserManagement({ token }: UserManagementProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [token])
+
+  useEffect(() => {
+    loadUsers()
+  }, [loadUsers])
 
   const toggleUserStatus = async (userId: number, currentStatus: boolean) => {
     try {
@@ -62,7 +62,7 @@ export function UserManagement({ token }: UserManagementProps) {
       })
 
       if (response.ok) {
-        await loadUsers() // Recargar la lista
+        await loadUsers()
       } else {
         const errorData = await response.json()
         alert(errorData.error || "Error al actualizar usuario")
@@ -173,11 +173,6 @@ export function UserManagement({ token }: UserManagementProps) {
                   <p>
                     <strong>Creado:</strong> {new Date(user.fecha_creacion).toLocaleDateString()}
                   </p>
-                  {user.ultimo_acceso && (
-                    <p>
-                      <strong>Último acceso:</strong> {new Date(user.ultimo_acceso).toLocaleDateString()}
-                    </p>
-                  )}
                 </div>
                 <div className="flex space-x-2 pt-2">
                   <Button
