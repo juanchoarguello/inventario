@@ -1,114 +1,101 @@
-import { type NextRequest, NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+import { getUserFromToken, hashPassword } from "@/lib/auth"
 import { sql } from "@/lib/database"
-import { getUserFromToken, hashPassword, logAction } from "@/lib/auth"
+import { createErrorResponse, createSuccessResponse } from "@/lib/error-handler"
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "")
+    const authHeader = request.headers.get("authorization")
+    const token = authHeader?.replace("Bearer ", "")
 
     if (!token) {
-      return NextResponse.json({ error: "Token no proporcionado" }, { status: 401 })
+      return createErrorResponse("Token de autorización requerido", 401)
     }
 
     const user = await getUserFromToken(token)
     if (!user) {
-      return NextResponse.json({ error: "Token inválido" }, { status: 401 })
+      return createErrorResponse("Token inválido", 401)
     }
 
+    // Solo admin puede ver usuarios
     if (user.rol !== "admin") {
-      return NextResponse.json({ error: "No tienes permisos para ver usuarios" }, { status: 403 })
+      return createErrorResponse("No tienes permisos para ver usuarios", 403)
     }
 
-    const usuarios = await sql`
-      SELECT id, username, email, nombre_completo, rol, activo, fecha_creacion, ultimo_acceso
-      FROM usuarios
+    const users = await sql`
+      SELECT id, username, email, nombre_completo, rol, activo, fecha_creacion
+      FROM usuarios 
       ORDER BY fecha_creacion DESC
     `
 
-    return NextResponse.json(usuarios)
+    return createSuccessResponse(users)
   } catch (error) {
-    console.error("Error obteniendo usuarios:", error)
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+    console.error("Error fetching users:", error)
+    return createErrorResponse("Error interno del servidor", 500)
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "")
+    const authHeader = request.headers.get("authorization")
+    const token = authHeader?.replace("Bearer ", "")
 
     if (!token) {
-      return NextResponse.json({ error: "Token no proporcionado" }, { status: 401 })
+      return createErrorResponse("Token de autorización requerido", 401)
     }
 
     const user = await getUserFromToken(token)
     if (!user) {
-      return NextResponse.json({ error: "Token inválido" }, { status: 401 })
+      return createErrorResponse("Token inválido", 401)
     }
 
+    // Solo admin puede crear usuarios
     if (user.rol !== "admin") {
-      return NextResponse.json({ error: "No tienes permisos para crear usuarios" }, { status: 403 })
+      return createErrorResponse("No tienes permisos para crear usuarios", 403)
     }
 
-    const body = await request.json()
-    const { username, email, password, nombre_completo, rol = "empleado" } = body
+    const userData = await request.json()
+    const { username, email, nombre_completo, rol, password } = userData
 
-    if (!username || !email || !password || !nombre_completo) {
-      return NextResponse.json({ error: "Todos los campos son obligatorios" }, { status: 400 })
+    // Validaciones
+    if (!username || !email || !nombre_completo || !rol || !password) {
+      return createErrorResponse("Todos los campos son requeridos", 400)
     }
 
-    if (password.length < 6) {
-      return NextResponse.json({ error: "La contraseña debe tener al menos 6 caracteres" }, { status: 400 })
+    if (!["admin", "supervisor", "empleado"].includes(rol)) {
+      return createErrorResponse("Rol inválido", 400)
     }
 
-    const existingUsers = await sql`
-      SELECT id, username, email FROM usuarios 
-      WHERE username = ${username} OR email = ${email}
+    // Verificar si el usuario ya existe
+    const existingUser = await sql`
+      SELECT id FROM usuarios WHERE username = ${username} OR email = ${email}
     `
 
-    if (existingUsers.length > 0) {
-      const existingUser = existingUsers[0]
-      const field = existingUser.username === username ? "usuario" : "email"
-      return NextResponse.json({ error: `Ya existe un ${field} con este valor` }, { status: 409 })
+    if (existingUser.length > 0) {
+      return createErrorResponse("El usuario o email ya existe", 400)
     }
 
-    const passwordHash = await hashPassword(password)
+    const hashedPassword = await hashPassword(password)
 
-    const result = await sql`
-      INSERT INTO usuarios (username, email, password_hash, nombre_completo, rol, created_by)
-      VALUES (${username}, ${email}, ${passwordHash}, ${nombre_completo}, ${rol}, ${user.id})
+    const newUser = await sql`
+      INSERT INTO usuarios (username, email, nombre_completo, rol, password_hash, activo)
+      VALUES (${username}, ${email}, ${nombre_completo}, ${rol}, ${hashedPassword}, true)
       RETURNING id, username, email, nombre_completo, rol, activo, fecha_creacion
     `
 
-    const newUser = result[0]
-
-    const ipAddress = request.ip || request.headers.get("x-forwarded-for") || "unknown"
-    const userAgent = request.headers.get("user-agent") || "unknown"
-
-    await logAction(
-      user.id,
-      "CREATE",
-      "usuarios",
-      newUser.id,
-      null,
-      { username, email, rol, nombre_completo },
-      ipAddress,
-      userAgent,
-    )
-
-    return NextResponse.json(
-      {
-        message: "Usuario creado exitosamente",
-        user: newUser,
-      },
-      { status: 201 },
-    )
-  } catch (error: any) {
-    console.error("Error creando usuario:", error)
-
-    if (error.code === "23505") {
-      return NextResponse.json({ error: "Ya existe un usuario con estos datos" }, { status: 409 })
+    // Registrar actividad
+    try {
+      await sql`
+        INSERT INTO historial_actividades (usuario_id, accion, tabla_afectada, registro_id, detalles)
+        VALUES (${user.id}, 'CREATE', 'usuarios', ${newUser[0].id}, ${"Usuario creado: " + username})
+      `
+    } catch (error) {
+      console.error("Error logging activity:", error)
     }
 
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+    return createSuccessResponse(newUser[0], 201)
+  } catch (error) {
+    console.error("Error creating user:", error)
+    return createErrorResponse("Error interno del servidor", 500)
   }
 }

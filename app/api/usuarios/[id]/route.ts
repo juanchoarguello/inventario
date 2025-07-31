@@ -1,143 +1,149 @@
-import { type NextRequest, NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+import { getUserFromToken, hashPassword } from "@/lib/auth"
 import { sql } from "@/lib/database"
-import { getUserFromToken, logAction, hashPassword } from "@/lib/auth"
+import { createErrorResponse, createSuccessResponse } from "@/lib/error-handler"
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "")
+    const authHeader = request.headers.get("authorization")
+    const token = authHeader?.replace("Bearer ", "")
 
     if (!token) {
-      return NextResponse.json({ error: "Token no proporcionado" }, { status: 401 })
+      return createErrorResponse("Token de autorización requerido", 401)
     }
 
     const user = await getUserFromToken(token)
     if (!user) {
-      return NextResponse.json({ error: "Token inválido" }, { status: 401 })
+      return createErrorResponse("Token inválido", 401)
     }
 
+    // Solo admin puede editar usuarios
     if (user.rol !== "admin") {
-      return NextResponse.json({ error: "No tienes permisos para modificar usuarios" }, { status: 403 })
+      return createErrorResponse("No tienes permisos para editar usuarios", 403)
     }
 
-    const { id } = await params
-    const userId = Number.parseInt(id)
-    const updateData = await request.json()
+    const userId = Number.parseInt(params.id)
+    if (isNaN(userId)) {
+      return createErrorResponse("ID de usuario inválido", 400)
+    }
 
-    const usuariosAnteriores = await sql`
+    const userData = await request.json()
+    const { username, email, nombre_completo, rol, password, activo } = userData
+
+    // Verificar que el usuario existe
+    const existingUser = await sql`
       SELECT * FROM usuarios WHERE id = ${userId}
     `
-    const usuarioAnterior = usuariosAnteriores[0]
 
-    if (!usuarioAnterior) {
-      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
+    if (existingUser.length === 0) {
+      return createErrorResponse("Usuario no encontrado", 404)
     }
 
-    if (updateData.email && updateData.email !== usuarioAnterior.email) {
-      const existingEmail = await sql`
-        SELECT id FROM usuarios WHERE email = ${updateData.email} AND id != ${userId}
-      `
-      if (existingEmail.length > 0) {
-        return NextResponse.json({ error: "Este email ya está en uso por otro usuario" }, { status: 409 })
-      }
-    }
-
-    if (updateData.username && updateData.username !== usuarioAnterior.username) {
-      const existingUsername = await sql`
-        SELECT id FROM usuarios WHERE username = ${updateData.username} AND id != ${userId}
-      `
-      if (existingUsername.length > 0) {
-        return NextResponse.json({ error: "Este nombre de usuario ya está en uso" }, { status: 409 })
-      }
-    }
-
-    const updateFields = {
-      username: updateData.username || usuarioAnterior.username,
-      email: updateData.email || usuarioAnterior.email,
-      nombre_completo: updateData.nombre_completo || usuarioAnterior.nombre_completo,
-      rol: updateData.rol || usuarioAnterior.rol,
-      activo: updateData.activo !== undefined ? updateData.activo : usuarioAnterior.activo,
-    }
-
-    if (updateData.password) {
-      if (updateData.password.length < 6) {
-        return NextResponse.json({ error: "La contraseña debe tener al menos 6 caracteres" }, { status: 400 })
-      }
-      updateFields.password_hash = await hashPassword(updateData.password)
-    }
-
-    const result = await sql`
-      UPDATE usuarios SET
-        username = ${updateFields.username},
-        email = ${updateFields.email},
-        nombre_completo = ${updateFields.nombre_completo},
-        rol = ${updateFields.rol},
-        activo = ${updateFields.activo}
-        ${updateFields.password_hash ? sql`, password_hash = ${updateFields.password_hash}` : sql``}
-      WHERE id = ${userId}
-      RETURNING id, username, email, nombre_completo, rol, activo, fecha_creacion, ultimo_acceso
+    // Verificar si el username o email ya existe en otro usuario
+    const duplicateUser = await sql`
+      SELECT id FROM usuarios 
+      WHERE (username = ${username} OR email = ${email}) AND id != ${userId}
     `
 
-    const usuarioActualizado = result[0]
+    if (duplicateUser.length > 0) {
+      return createErrorResponse("El usuario o email ya existe", 400)
+    }
 
-    const ipAddress = request.ip || request.headers.get("x-forwarded-for") || "unknown"
-    const userAgent = request.headers.get("user-agent") || "unknown"
+    let updateQuery = `
+      UPDATE usuarios SET
+        username = $1,
+        email = $2,
+        nombre_completo = $3,
+        rol = $4,
+        activo = $5
+    `
+    const queryParams = [username, email, nombre_completo, rol, activo !== false]
 
-    await logAction(user.id, "UPDATE", "usuarios", userId, usuarioAnterior, updateData, ipAddress, userAgent)
+    // Si se proporciona nueva contraseña, incluirla en la actualización
+    if (password && password.trim() !== "") {
+      const hashedPassword = await hashPassword(password)
+      updateQuery += `, password_hash = $6`
+      queryParams.push(hashedPassword)
+    }
 
-    return NextResponse.json(usuarioActualizado)
-  } catch (error: any) {
-    console.error("Error actualizando usuario:", error)
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+    updateQuery += ` WHERE id = $${queryParams.length + 1} RETURNING id, username, email, nombre_completo, rol, activo, fecha_creacion`
+    queryParams.push(userId)
+
+    const updatedUser = await sql.query(updateQuery, queryParams)
+
+    // Registrar actividad
+    try {
+      await sql`
+        INSERT INTO historial_actividades (usuario_id, accion, tabla_afectada, registro_id, detalles)
+        VALUES (${user.id}, 'UPDATE', 'usuarios', ${userId}, ${"Usuario actualizado: " + username})
+      `
+    } catch (error) {
+      console.error("Error logging activity:", error)
+    }
+
+    return createSuccessResponse(updatedUser.rows[0])
+  } catch (error) {
+    console.error("Error updating user:", error)
+    return createErrorResponse("Error interno del servidor", 500)
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "")
+    const authHeader = request.headers.get("authorization")
+    const token = authHeader?.replace("Bearer ", "")
 
     if (!token) {
-      return NextResponse.json({ error: "Token no proporcionado" }, { status: 401 })
+      return createErrorResponse("Token de autorización requerido", 401)
     }
 
     const user = await getUserFromToken(token)
     if (!user) {
-      return NextResponse.json({ error: "Token inválido" }, { status: 401 })
+      return createErrorResponse("Token inválido", 401)
     }
 
+    // Solo admin puede eliminar usuarios
     if (user.rol !== "admin") {
-      return NextResponse.json({ error: "No tienes permisos para modificar usuarios" }, { status: 403 })
+      return createErrorResponse("No tienes permisos para eliminar usuarios", 403)
     }
 
-    const { id } = await params
-    const userId = Number.parseInt(id)
-    const updateData = await request.json()
-
-    const usuariosAnteriores = await sql`
-      SELECT * FROM usuarios WHERE id = ${userId}
-    `
-    const usuarioAnterior = usuariosAnteriores[0]
-
-    if (!usuarioAnterior) {
-      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
+    const userId = Number.parseInt(params.id)
+    if (isNaN(userId)) {
+      return createErrorResponse("ID de usuario inválido", 400)
     }
 
-    const result = await sql`
-      UPDATE usuarios SET
-        activo = ${updateData.activo !== undefined ? updateData.activo : usuarioAnterior.activo}
-      WHERE id = ${userId}
-      RETURNING id, username, email, nombre_completo, rol, activo, fecha_creacion, ultimo_acceso
+    // No permitir que el admin se elimine a sí mismo
+    if (userId === user.id) {
+      return createErrorResponse("No puedes eliminarte a ti mismo", 400)
+    }
+
+    // Verificar que el usuario existe
+    const existingUser = await sql`
+      SELECT username FROM usuarios WHERE id = ${userId}
     `
 
-    const usuarioActualizado = result[0]
+    if (existingUser.length === 0) {
+      return createErrorResponse("Usuario no encontrado", 404)
+    }
 
-    const ipAddress = request.ip || request.headers.get("x-forwarded-for") || "unknown"
-    const userAgent = request.headers.get("user-agent") || "unknown"
+    // En lugar de eliminar, desactivar el usuario
+    await sql`
+      UPDATE usuarios SET activo = false WHERE id = ${userId}
+    `
 
-    await logAction(user.id, "UPDATE", "usuarios", userId, usuarioAnterior, updateData, ipAddress, userAgent)
+    // Registrar actividad
+    try {
+      await sql`
+        INSERT INTO historial_actividades (usuario_id, accion, tabla_afectada, registro_id, detalles)
+        VALUES (${user.id}, 'DELETE', 'usuarios', ${userId}, ${"Usuario desactivado: " + existingUser[0].username})
+      `
+    } catch (error) {
+      console.error("Error logging activity:", error)
+    }
 
-    return NextResponse.json(usuarioActualizado)
+    return createSuccessResponse({ message: "Usuario desactivado exitosamente" })
   } catch (error) {
-    console.error("Error actualizando usuario:", error)
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+    console.error("Error deleting user:", error)
+    return createErrorResponse("Error interno del servidor", 500)
   }
 }

@@ -1,107 +1,100 @@
-import { type NextRequest, NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+import { getUserFromToken } from "@/lib/auth"
 import { sql } from "@/lib/database"
-import { getUserFromToken, logAction } from "@/lib/auth"
-import type { Parte } from "@/lib/database"
+import { createErrorResponse, createSuccessResponse } from "@/lib/error-handler"
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "")
+    const authHeader = request.headers.get("authorization")
+    const token = authHeader?.replace("Bearer ", "")
 
     if (!token) {
-      return NextResponse.json({ error: "Token no proporcionado" }, { status: 401 })
+      return createErrorResponse("Token de autorización requerido", 401)
     }
 
     const user = await getUserFromToken(token)
     if (!user) {
-      return NextResponse.json({ error: "Token inválido" }, { status: 401 })
+      return createErrorResponse("Token inválido", 401)
     }
 
-    const partes = await sql`
-      SELECT p.*, u1.nombre_completo as usuario_creacion_nombre, u2.nombre_completo as usuario_actualizacion_nombre
-      FROM partes p
-      LEFT JOIN usuarios u1 ON p.usuario_creacion = u1.id
-      LEFT JOIN usuarios u2 ON p.usuario_actualizacion = u2.id
-      ORDER BY p.fecha_actualizacion DESC
+    const parts = await sql`
+      SELECT * FROM partes 
+      ORDER BY fecha_creacion DESC
     `
 
-    const partesFormateadas = partes.map((parte) => ({
-      ...parte,
-      precio: Number(parte.precio),
-      stock: Number(parte.stock),
-      stock_minimo: Number(parte.stock_minimo),
-    }))
-
-    return NextResponse.json(partesFormateadas)
+    return createSuccessResponse(parts)
   } catch (error) {
-    console.error("Error obteniendo partes:", error)
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+    console.error("Error fetching parts:", error)
+    return createErrorResponse("Error interno del servidor", 500)
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "")
+    const authHeader = request.headers.get("authorization")
+    const token = authHeader?.replace("Bearer ", "")
 
     if (!token) {
-      return NextResponse.json({ error: "Token no proporcionado" }, { status: 401 })
+      return createErrorResponse("Token de autorización requerido", 401)
     }
 
     const user = await getUserFromToken(token)
     if (!user) {
-      return NextResponse.json({ error: "Token inválido" }, { status: 401 })
+      return createErrorResponse("Token inválido", 401)
     }
 
-    const parteData = await request.json()
+    const partData = await request.json()
+    const {
+      numero_parte,
+      nombre,
+      descripcion,
+      categoria,
+      ubicacion,
+      cantidad_stock,
+      stock_minimo,
+      precio_unitario,
+      proveedor,
+    } = partData
 
-    const cleanedData = {
-      codigo: parteData.codigo?.trim(),
-      nombre: parteData.nombre?.trim(),
-      categoria: parteData.categoria,
-      marca: parteData.marca?.trim(),
-      modelo_compatible: parteData.modelo || parteData.modelo_compatible || null,
-      precio: Number(parteData.precio) || 0,
-      stock: Number(parteData.stock) || 0,
-      stock_minimo: Number(parteData.stockMinimo) || Number(parteData.stock_minimo) || 0,
-      ubicacion: parteData.ubicacion?.trim() || null,
-      proveedor: parteData.proveedor?.trim() || null,
-      descripcion: parteData.descripcion?.trim() || null,
+    // Validaciones
+    if (!numero_parte || !nombre || !categoria) {
+      return createErrorResponse("Campos requeridos: numero_parte, nombre, categoria", 400)
     }
 
-    if (!cleanedData.codigo || !cleanedData.nombre || !cleanedData.categoria || !cleanedData.marca) {
-      return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 })
-    }
-
-    if (cleanedData.precio < 0 || cleanedData.stock < 0 || cleanedData.stock_minimo < 0) {
-      return NextResponse.json({ error: "Los valores numéricos no pueden ser negativos" }, { status: 400 })
-    }
-
-    const result = await sql`
-      INSERT INTO partes (
-        codigo, nombre, categoria, marca, modelo_compatible, precio, 
-        stock, stock_minimo, ubicacion, proveedor, descripcion, usuario_creacion
-      ) VALUES (
-        ${cleanedData.codigo}, ${cleanedData.nombre}, ${cleanedData.categoria}, 
-        ${cleanedData.marca}, ${cleanedData.modelo_compatible}, ${cleanedData.precio},
-        ${cleanedData.stock}, ${cleanedData.stock_minimo}, ${cleanedData.ubicacion},
-        ${cleanedData.proveedor}, ${cleanedData.descripcion}, ${user.id}
-      ) RETURNING *
+    // Verificar si el número de parte ya existe
+    const existingPart = await sql`
+      SELECT id FROM partes WHERE numero_parte = ${numero_parte}
     `
 
-    const nuevaParte = result[0] as Parte
-
-    const ipAddress = request.ip || request.headers.get("x-forwarded-for") || "unknown"
-    const userAgent = request.headers.get("user-agent") || "unknown"
-
-    await logAction(user.id, "CREATE", "partes", nuevaParte.id, null, parteData, ipAddress, userAgent)
-
-    return NextResponse.json(nuevaParte, { status: 201 })
-  } catch (error: any) {
-    console.error("Error creando parte:", error)
-
-    if (error.code === "23505") {
-      return NextResponse.json({ error: "Ya existe una parte con este código" }, { status: 409 })
+    if (existingPart.length > 0) {
+      return createErrorResponse("El número de parte ya existe", 400)
     }
 
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+    const newPart = await sql`
+      INSERT INTO partes (
+        numero_parte, nombre, descripcion, categoria, ubicacion,
+        cantidad_stock, stock_minimo, precio_unitario, proveedor
+      )
+      VALUES (
+        ${numero_parte}, ${nombre}, ${descripcion || ""}, ${categoria}, ${ubicacion || ""},
+        ${cantidad_stock || 0}, ${stock_minimo || 0}, ${precio_unitario || 0}, ${proveedor || ""}
+      )
+      RETURNING *
+    `
+
+    // Registrar actividad
+    try {
+      await sql`
+        INSERT INTO historial_actividades (usuario_id, accion, tabla_afectada, registro_id, detalles)
+        VALUES (${user.id}, 'CREATE', 'partes', ${newPart[0].id}, ${"Parte creada: " + nombre})
+      `
+    } catch (error) {
+      console.error("Error logging activity:", error)
+    }
+
+    return createSuccessResponse(newPart[0], 201)
+  } catch (error) {
+    console.error("Error creating part:", error)
+    return createErrorResponse("Error interno del servidor", 500)
   }
 }

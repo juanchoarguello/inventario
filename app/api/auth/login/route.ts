@@ -1,56 +1,41 @@
-import { type NextRequest, NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+import { authenticateUser, generateToken } from "@/lib/auth"
 import { sql } from "@/lib/database"
-import { verifyPassword, createSession, logAction } from "@/lib/auth"
-import type { Usuario } from "@/lib/database"
+import { createErrorResponse, createSuccessResponse } from "@/lib/error-handler"
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { username, password } = body
+    const { username, password } = await request.json()
 
     if (!username || !password) {
-      return NextResponse.json({ error: "Usuario y contraseña son requeridos" }, { status: 400 })
+      return createErrorResponse("Usuario y contraseña son requeridos", 400)
     }
 
-    const users = await sql`
-      SELECT * FROM usuarios 
-      WHERE username = ${username} AND activo = true
-    `
-
-    const user = users[0] as Usuario
+    const user = await authenticateUser(username, password)
 
     if (!user) {
-      return NextResponse.json({ error: "Usuario o contraseña incorrectos" }, { status: 401 })
+      return createErrorResponse("Credenciales inválidas", 401)
     }
 
-    const isPasswordValid = await verifyPassword(password, user.password_hash)
+    const token = generateToken(user)
 
-    if (!isPasswordValid) {
-      return NextResponse.json({ error: "Usuario o contraseña incorrectos" }, { status: 401 })
+    // Registrar actividad de login
+    try {
+      await sql`
+        INSERT INTO historial_actividades (usuario_id, accion, tabla_afectada, registro_id, detalles)
+        VALUES (${user.id}, 'LOGIN', 'usuarios', ${user.id}, 'Usuario inició sesión')
+      `
+    } catch (error) {
+      console.error("Error logging activity:", error)
     }
 
-    const ipAddress = request.ip || request.headers.get("x-forwarded-for") || "unknown"
-    const userAgent = request.headers.get("user-agent") || "unknown"
-
-    const token = await createSession(user.id, ipAddress, userAgent)
-
-    await sql`
-      UPDATE usuarios 
-      SET ultimo_acceso = CURRENT_TIMESTAMP 
-      WHERE id = ${user.id}
-    `
-
-    await logAction(user.id, "LOGIN", "usuarios", user.id, null, { username: user.username }, ipAddress, userAgent)
-
-    const { password_hash, ...userWithoutPassword } = user
-
-    return NextResponse.json({
-      user: userWithoutPassword,
+    return createSuccessResponse({
+      user,
       token,
-      message: "Inicio de sesión exitoso",
+      message: "Login exitoso",
     })
-  } catch (error: any) {
-    console.error("Error en login:", error)
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+  } catch (error) {
+    console.error("Login error:", error)
+    return createErrorResponse("Error interno del servidor", 500)
   }
 }

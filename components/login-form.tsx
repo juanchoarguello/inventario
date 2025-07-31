@@ -1,16 +1,18 @@
 "use client"
 
 import type React from "react"
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Wrench } from "lucide-react"
+import { Loader2 } from "lucide-react"
+import type { Usuario } from "@/lib/database"
 
 interface LoginFormProps {
-  onLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }>
+  onLogin: (user: Usuario, token: string) => void
 }
 
 export function LoginForm({ onLogin }: LoginFormProps) {
@@ -25,11 +27,23 @@ export function LoginForm({ onLogin }: LoginFormProps) {
     setError("")
 
     try {
-      const result = await onLogin(username, password)
-      if (!result.success) {
-        setError(result.error || "Error de autenticación")
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        onLogin(data.user, data.token)
+      } else {
+        setError(data.error || "Error de autenticación")
       }
-    } catch (err) {
+    } catch (error) {
+      console.error("Login error:", error)
       setError("Error de conexión con el servidor")
     } finally {
       setLoading(false)
@@ -37,53 +51,66 @@ export function LoginForm({ onLogin }: LoginFormProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <Wrench className="h-8 w-8 text-blue-600" />
-            <span className="text-2xl font-bold text-gray-900">AutoPartes Pro</span>
-          </div>
-          <CardTitle className="text-xl">Iniciar Sesión</CardTitle>
-          <p className="text-gray-600">Sistema de Inventario de Partes Automotrices</p>
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">Sistema de Inventario</CardTitle>
+          <CardDescription className="text-center">Ingresa tus credenciales para acceder</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="username">Usuario</Label>
               <Input
                 id="username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Ingresa tu usuario"
                 required
                 disabled={loading}
+                placeholder="Ingresa tu usuario"
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Ingresa tu contraseña"
                 required
                 disabled={loading}
+                placeholder="Ingresa tu contraseña"
               />
             </div>
-
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Iniciando sesión...
+                </>
+              ) : (
+                "Iniciar Sesión"
+              )}
             </Button>
           </form>
+          <div className="mt-6 text-sm text-gray-600 text-center">
+            <p>Credenciales de prueba:</p>
+            <p>
+              <strong>Admin:</strong> admin / admin123
+            </p>
+            <p>
+              <strong>Supervisor:</strong> supervisor / super123
+            </p>
+            <p>
+              <strong>Empleado:</strong> empleado / emp123
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

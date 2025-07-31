@@ -1,239 +1,161 @@
-import { AlertTriangle, Package, TrendingDown, TrendingUp } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+"use client"
 
-interface Part {
-  id: number
-  codigo: string
-  nombre: string
-  categoria: string
-  marca: string
-  modelo: string
-  precio: number
-  stock: number
-  stockMinimo: number
-  ubicacion: string
-  proveedor: string
-}
+import { useState, useEffect } from "react"
+import { ResumenGeneral } from "@/components/resumen-general"
+import { Inventario } from "@/components/inventario"
+import { AgregarParteForm } from "@/components/agregar-parte-form"
+import { GestionUsuarios } from "@/components/gestion-usuarios"
+import { HistorialActividades } from "@/components/historial-actividades"
+import { Sidebar } from "@/components/sidebar"
+import { Header } from "@/components/header"
+import type { Usuario, Parte } from "@/lib/database"
 
 interface DashboardProps {
-  parts: Part[]
+  user: Usuario
+  token: string
+  onLogout: () => void
 }
 
-export function Dashboard({ parts }: DashboardProps) {
-  const totalParts = parts.length
-  const totalValue = parts.reduce((sum, part) => sum + Number(part.precio) * Number(part.stock), 0)
+export function Dashboard({ user, token, onLogout }: DashboardProps) {
+  const [activeView, setActiveView] = useState("resumen")
+  const [parts, setParts] = useState<Parte[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // 🔧 LÓGICA CORREGIDA: Stock bajo cuando stock <= stock_minimo
-  const lowStockParts = parts.filter((part) => {
-    const stock = Number(part.stock)
-    const stockMinimo = Number(part.stockMinimo || part.stock_minimo || 0)
+  useEffect(() => {
+    loadParts()
+  }, [token])
 
-    console.log(`📊 Verificando ${part.nombre}:`, {
-      stock: stock,
-      stockMinimo: stockMinimo,
-      esBajo: stock <= stockMinimo,
-    })
+  const loadParts = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch("/api/partes", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
 
-    return stock <= stockMinimo
-  })
+      if (response.ok) {
+        const partsData = await response.json()
+        setParts(Array.isArray(partsData) ? partsData : [])
+      } else {
+        console.error("Error loading parts:", response.statusText)
+        setParts([])
+      }
+    } catch (error) {
+      console.error("Error loading parts:", error)
+      setParts([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  console.log(`🚨 Partes con stock bajo encontradas: ${lowStockParts.length}`)
-  lowStockParts.forEach((part) => {
-    console.log(`   - ${part.nombre}: Stock=${part.stock}, Mínimo=${part.stockMinimo || part.stock_minimo}`)
-  })
+  const addPart = async (newPart: Record<string, unknown>) => {
+    try {
+      const response = await fetch("/api/partes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newPart),
+      })
 
-  const electricParts = parts.filter((part) => part.categoria === "electrica").length
-  const motorParts = parts.filter((part) => part.categoria === "motor").length
-  const frenosParts = parts.filter((part) => part.categoria === "frenos").length
-  const suspensionParts = parts.filter((part) => part.categoria === "suspension").length
-  const transmisionParts = parts.filter((part) => part.categoria === "transmision").length
+      const data = await response.json()
+
+      if (response.ok) {
+        setParts((prevParts) => [...prevParts, data])
+        setActiveView("inventario")
+        return { success: true }
+      } else {
+        return {
+          success: false,
+          error: data.error || "Error al crear la parte",
+        }
+      }
+    } catch (error) {
+      console.error("Add part error:", error)
+      return {
+        success: false,
+        error: "Error de conexión con el servidor",
+      }
+    }
+  }
+
+  const updatePart = async (updatedPart: Parte) => {
+    try {
+      const response = await fetch(`/api/partes/${updatedPart.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updatedPart),
+      })
+
+      if (response.ok) {
+        const updated = await response.json()
+        setParts((currentParts) => currentParts.map((part) => (part.id === updated.id ? updated : part)))
+        return { success: true }
+      } else {
+        const errorData = await response.json()
+        return { success: false, error: errorData.error }
+      }
+    } catch (error) {
+      console.error("Update part error:", error)
+      return { success: false, error: "Error de conexión con el servidor" }
+    }
+  }
+
+  const deletePart = async (id: number) => {
+    try {
+      const response = await fetch(`/api/partes/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        setParts((currentParts) => currentParts.filter((part) => part.id !== id))
+        return { success: true }
+      } else {
+        const errorData = await response.json()
+        return { success: false, error: errorData.error }
+      }
+    } catch (error) {
+      console.error("Delete part error:", error)
+      return { success: false, error: "Error de conexión con el servidor" }
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando inventario...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold text-gray-900">Dashboard</h2>
-        <p className="text-gray-600">Resumen del inventario de partes automotrices</p>
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar activeView={activeView} setActiveView={setActiveView} user={user} />
+      <div className="flex-1 flex flex-col">
+        <Header user={user} onLogout={onLogout} />
+        <main className="flex-1 p-6 overflow-auto">
+          {activeView === "resumen" && <ResumenGeneral parts={parts} />}
+          {activeView === "inventario" && (
+            <Inventario parts={parts} updatePart={updatePart} deletePart={deletePart} userRole={user.rol} />
+          )}
+          {activeView === "agregar-parte" && <AgregarParteForm onAddPart={addPart} />}
+          {activeView === "usuarios" && user.rol === "admin" && <GestionUsuarios token={token} />}
+          {activeView === "historial" && (user.rol === "admin" || user.rol === "supervisor") && (
+            <HistorialActividades token={token} />
+          )}
+        </main>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Partes</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalParts}</div>
-            <p className="text-xs text-muted-foreground">
-              {electricParts} eléctricas, {motorParts} motor, {frenosParts} frenos
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${totalValue.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">Valor total del inventario</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Stock Bajo</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{lowStockParts.length}</div>
-            <p className="text-xs text-muted-foreground">Partes con stock ≤ mínimo</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Promedio Precio</CardTitle>
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              $
-              {totalParts > 0
-                ? (parts.reduce((sum, part) => sum + Number(part.precio), 0) / totalParts).toFixed(2)
-                : "0.00"}
-            </div>
-            <p className="text-xs text-muted-foreground">Precio promedio por parte</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-              <span>Alertas de Stock Bajo</span>
-              <Badge variant="destructive" className="bg-red-500 text-white">
-                {lowStockParts.length}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {lowStockParts.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="text-green-600 text-4xl mb-2">✅</div>
-                  <p className="text-green-700 font-medium">¡Excelente!</p>
-                  <p className="text-gray-500 text-sm">No hay partes con stock bajo</p>
-                </div>
-              ) : (
-                lowStockParts.map((part) => {
-                  const stock = Number(part.stock)
-                  const stockMinimo = Number(part.stockMinimo || part.stock_minimo || 0)
-
-                  return (
-                    <div
-                      key={part.id}
-                      className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">{part.nombre}</p>
-                        <p className="text-sm text-gray-600">
-                          {part.codigo} - {part.marca}
-                        </p>
-                        <p className="text-xs text-gray-500">Ubicación: {part.ubicacion || "N/A"}</p>
-                      </div>
-                      <div className="text-right">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <Badge variant="destructive" className="bg-red-500 text-white">
-                            {stock} unidades
-                          </Badge>
-                          {stock === 0 && <Badge className="bg-red-700 text-white text-xs">¡AGOTADO!</Badge>}
-                        </div>
-                        <p className="text-xs text-gray-500">Mínimo: {stockMinimo}</p>
-                        <p className="text-xs text-red-600 font-medium">
-                          {stock === 0
-                            ? "Sin stock"
-                            : stock < stockMinimo
-                              ? `Faltan ${stockMinimo - stock}`
-                              : "En el límite"}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Partes Más Valiosas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {parts
-                .sort((a, b) => Number(b.precio) * Number(b.stock) - Number(a.precio) * Number(a.stock))
-                .slice(0, 5)
-                .map((part) => (
-                  <div key={part.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{part.nombre}</p>
-                      <p className="text-sm text-gray-600">
-                        {part.codigo} - {part.marca}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-green-600">
-                        ${(Number(part.precio) * Number(part.stock)).toFixed(2)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {part.stock} × ${Number(part.precio).toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 🔍 SECCIÓN DE DEBUG - Temporal para verificar */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardHeader>
-          <CardTitle className="text-blue-800">🔍 Debug - Estado del Stock</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {parts.slice(0, 6).map((part) => {
-              const stock = Number(part.stock)
-              const stockMinimo = Number(part.stockMinimo || part.stock_minimo || 0)
-              const esBajo = stock <= stockMinimo
-
-              return (
-                <div key={part.id} className="bg-white p-3 rounded border">
-                  <p className="font-medium text-sm">{part.nombre}</p>
-                  <div className="text-xs space-y-1 mt-2">
-                    <p>
-                      Stock: <strong>{stock}</strong>
-                    </p>
-                    <p>
-                      Mínimo: <strong>{stockMinimo}</strong>
-                    </p>
-                    <p>
-                      ¿Es bajo?:{" "}
-                      <strong className={esBajo ? "text-red-600" : "text-green-600"}>{esBajo ? "SÍ" : "NO"}</strong>
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

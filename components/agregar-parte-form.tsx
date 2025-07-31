@@ -1,14 +1,16 @@
 "use client"
 
 import type React from "react"
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Loader2, Plus } from "lucide-react"
 
 interface AgregarParteFormProps {
   onAddPart: (part: any) => Promise<{ success: boolean; error?: string }>
@@ -20,21 +22,23 @@ export function AgregarParteForm({ onAddPart }: AgregarParteFormProps) {
     nombre: "",
     categoria: "",
     marca: "",
-    modelo: "",
+    modelo_compatible: "",
     precio: "",
     stock: "",
     stockMinimo: "",
     ubicacion: "",
     proveedor: "",
+    descripcion: "",
   })
-
-  const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError("")
+    setSuccess(false)
 
     try {
       const result = await onAddPart({
@@ -45,20 +49,22 @@ export function AgregarParteForm({ onAddPart }: AgregarParteFormProps) {
       })
 
       if (result.success) {
+        setSuccess(true)
         setFormData({
           codigo: "",
           nombre: "",
           categoria: "",
           marca: "",
-          modelo: "",
+          modelo_compatible: "",
           precio: "",
           stock: "",
           stockMinimo: "",
           ubicacion: "",
           proveedor: "",
+          descripcion: "",
         })
       } else {
-        setError(result.error || "Error al agregar la parte")
+        setError(result.error || "Error al crear la parte")
       }
     } catch (err) {
       setError("Error de conexión con el servidor")
@@ -67,18 +73,11 @@ export function AgregarParteForm({ onAddPart }: AgregarParteFormProps) {
     }
   }
 
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const handleNumericChange = (field: string, value: string) => {
-    let numericValue = value
-    if (field === "precio") {
-      numericValue = value.replace(/[^0-9.]/g, "")
-    } else {
-      numericValue = value.replace(/[^0-9]/g, "")
-    }
-    setFormData((prev) => ({ ...prev, [field]: numericValue }))
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
   }
 
   return (
@@ -88,26 +87,49 @@ export function AgregarParteForm({ onAddPart }: AgregarParteFormProps) {
         <p className="text-gray-600">Registra una nueva parte en el inventario</p>
       </div>
 
-      <Card className="max-w-2xl">
+      <Card>
         <CardHeader>
-          <CardTitle>Información de la Parte</CardTitle>
+          <CardTitle className="flex items-center space-x-2">
+            <Plus className="h-5 w-5" />
+            <span>Información de la Parte</span>
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="codigo">Código de Parte *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="codigo">Código *</Label>
                 <Input
                   id="codigo"
                   value={formData.codigo}
-                  onChange={(e) => handleChange("codigo", e.target.value)}
-                  placeholder="Ej: ALT001"
+                  onChange={(e) => handleInputChange("codigo", e.target.value)}
+                  placeholder="Ej: ELE001"
                   required
+                  disabled={loading}
                 />
               </div>
-              <div>
+
+              <div className="space-y-2">
+                <Label htmlFor="nombre">Nombre *</Label>
+                <Input
+                  id="nombre"
+                  value={formData.nombre}
+                  onChange={(e) => handleInputChange("nombre", e.target.value)}
+                  placeholder="Ej: Batería 12V 60Ah"
+                  required
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label htmlFor="categoria">Categoría *</Label>
-                <Select value={formData.categoria} onValueChange={(value) => handleChange("categoria", value)}>
+                <Select
+                  value={formData.categoria}
+                  onValueChange={(value) => handleInputChange("categoria", value)}
+                  disabled={loading}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar categoría" />
                   </SelectTrigger>
@@ -120,87 +142,69 @@ export function AgregarParteForm({ onAddPart }: AgregarParteFormProps) {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            <div>
-              <Label htmlFor="nombre">Nombre de la Parte *</Label>
-              <Input
-                id="nombre"
-                value={formData.nombre}
-                onChange={(e) => handleChange("nombre", e.target.value)}
-                placeholder="Ej: Alternador 12V"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="marca">Marca *</Label>
                 <Input
                   id="marca"
                   value={formData.marca}
-                  onChange={(e) => handleChange("marca", e.target.value)}
+                  onChange={(e) => handleInputChange("marca", e.target.value)}
                   placeholder="Ej: Bosch"
                   required
-                />
-              </div>
-              <div>
-                <Label htmlFor="proveedor">Proveedor</Label>
-                <Input
-                  id="proveedor"
-                  value={formData.proveedor}
-                  onChange={(e) => handleChange("proveedor", e.target.value)}
-                  placeholder="Ej: AutoPartes SA"
+                  disabled={loading}
                 />
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="modelo">Modelo Compatible</Label>
-              <Textarea
-                id="modelo"
-                value={formData.modelo}
-                onChange={(e) => handleChange("modelo", e.target.value)}
-                placeholder="Ej: Toyota Corolla 2015-2020"
-                rows={2}
+            <div className="space-y-2">
+              <Label htmlFor="modelo_compatible">Modelo Compatible</Label>
+              <Input
+                id="modelo_compatible"
+                value={formData.modelo_compatible}
+                onChange={(e) => handleInputChange("modelo_compatible", e.target.value)}
+                placeholder="Ej: Toyota Corolla 2020"
+                disabled={loading}
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="precio">Precio ($) *</Label>
                 <Input
                   id="precio"
-                  type="text"
-                  inputMode="decimal"
+                  type="number"
+                  min="0"
+                  step="0.01"
                   value={formData.precio}
-                  onChange={(e) => handleNumericChange("precio", e.target.value)}
+                  onChange={(e) => handleInputChange("precio", e.target.value)}
                   placeholder="0.00"
                   required
                   disabled={loading}
                 />
               </div>
-              <div>
-                <Label htmlFor="stock">Stock Actual *</Label>
+
+              <div className="space-y-2">
+                <Label htmlFor="stock">Stock Inicial *</Label>
                 <Input
                   id="stock"
-                  type="text"
-                  inputMode="numeric"
+                  type="number"
+                  min="0"
                   value={formData.stock}
-                  onChange={(e) => handleNumericChange("stock", e.target.value)}
+                  onChange={(e) => handleInputChange("stock", e.target.value)}
                   placeholder="0"
                   required
                   disabled={loading}
                 />
               </div>
-              <div>
+
+              <div className="space-y-2">
                 <Label htmlFor="stockMinimo">Stock Mínimo *</Label>
                 <Input
                   id="stockMinimo"
-                  type="text"
-                  inputMode="numeric"
+                  type="number"
+                  min="0"
                   value={formData.stockMinimo}
-                  onChange={(e) => handleNumericChange("stockMinimo", e.target.value)}
+                  onChange={(e) => handleInputChange("stockMinimo", e.target.value)}
                   placeholder="0"
                   required
                   disabled={loading}
@@ -208,13 +212,39 @@ export function AgregarParteForm({ onAddPart }: AgregarParteFormProps) {
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="ubicacion">Ubicación en Almacén</Label>
-              <Input
-                id="ubicacion"
-                value={formData.ubicacion}
-                onChange={(e) => handleChange("ubicacion", e.target.value)}
-                placeholder="Ej: A-1-3"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="ubicacion">Ubicación</Label>
+                <Input
+                  id="ubicacion"
+                  value={formData.ubicacion}
+                  onChange={(e) => handleInputChange("ubicacion", e.target.value)}
+                  placeholder="Ej: Estante A1"
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="proveedor">Proveedor</Label>
+                <Input
+                  id="proveedor"
+                  value={formData.proveedor}
+                  onChange={(e) => handleInputChange("proveedor", e.target.value)}
+                  placeholder="Nombre del proveedor"
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="descripcion">Descripción</Label>
+              <Textarea
+                id="descripcion"
+                value={formData.descripcion}
+                onChange={(e) => handleInputChange("descripcion", e.target.value)}
+                placeholder="Descripción detallada de la parte"
+                rows={3}
+                disabled={loading}
               />
             </div>
 
@@ -224,62 +254,54 @@ export function AgregarParteForm({ onAddPart }: AgregarParteFormProps) {
               </Alert>
             )}
 
-            <div className="flex space-x-4 pt-4">
-              <Button type="submit" className="flex-1" disabled={loading}>
-                {loading ? "Agregando..." : "Agregar Parte"}
-              </Button>
+            {success && (
+              <Alert className="border-green-200 bg-green-50">
+                <AlertDescription className="text-green-800">
+                  ¡Parte agregada exitosamente! Se ha redirigido al inventario.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <div className="flex justify-end space-x-4">
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 bg-transparent"
-                disabled={loading}
                 onClick={() => {
-                  setError("")
                   setFormData({
                     codigo: "",
                     nombre: "",
                     categoria: "",
                     marca: "",
-                    modelo: "",
+                    modelo_compatible: "",
                     precio: "",
                     stock: "",
                     stockMinimo: "",
                     ubicacion: "",
                     proveedor: "",
+                    descripcion: "",
                   })
+                  setError("")
+                  setSuccess(false)
                 }}
+                disabled={loading}
               >
                 Limpiar Formulario
               </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Agregar Parte
+                  </>
+                )}
+              </Button>
             </div>
           </form>
-        </CardContent>
-      </Card>
-
-      <Card className="max-w-2xl bg-blue-50 border-blue-200">
-        <CardHeader>
-          <CardTitle className="text-blue-800">💡 Consejos para llenar el formulario</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            <div className="bg-white p-3 rounded border">
-              <strong>Código:</strong> ALT001, BAT002, MOT003
-            </div>
-            <div className="bg-white p-3 rounded border">
-              <strong>Precio:</strong> 25.50, 120.00, 1500
-            </div>
-            <div className="bg-white p-3 rounded border">
-              <strong>Stock:</strong> 10, 25, 100
-            </div>
-            <div className="bg-white p-3 rounded border">
-              <strong>Stock Mínimo:</strong> 5, 10, 20
-            </div>
-          </div>
-          <div className="bg-green-50 p-3 rounded border border-green-200">
-            <p className="text-green-800 font-medium">
-              ✅ Campos obligatorios: Código, Nombre, Categoría, Marca, Precio, Stock y Stock Mínimo
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

@@ -1,130 +1,139 @@
-import { type NextRequest, NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+import { getUserFromToken } from "@/lib/auth"
 import { sql } from "@/lib/database"
-import { getUserFromToken, logAction } from "@/lib/auth"
-import type { Parte } from "@/lib/database"
+import { createErrorResponse, createSuccessResponse } from "@/lib/error-handler"
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "")
+    const authHeader = request.headers.get("authorization")
+    const token = authHeader?.replace("Bearer ", "")
 
     if (!token) {
-      return NextResponse.json({ error: "Token no proporcionado" }, { status: 401 })
+      return createErrorResponse("Token de autorización requerido", 401)
     }
 
     const user = await getUserFromToken(token)
     if (!user) {
-      return NextResponse.json({ error: "Token inválido" }, { status: 401 })
+      return createErrorResponse("Token inválido", 401)
     }
 
-    const { id } = await params
-    const parteId = Number.parseInt(id)
-    const parteData = await request.json()
+    const partId = Number.parseInt(params.id)
+    if (isNaN(partId)) {
+      return createErrorResponse("ID de parte inválido", 400)
+    }
 
-    const partesAnteriores = await sql`
-      SELECT * FROM partes WHERE id = ${parteId}
+    const partData = await request.json()
+    const {
+      numero_parte,
+      nombre,
+      descripcion,
+      categoria,
+      ubicacion,
+      cantidad_stock,
+      stock_minimo,
+      precio_unitario,
+      proveedor,
+    } = partData
+
+    // Verificar que la parte existe
+    const existingPart = await sql`
+      SELECT * FROM partes WHERE id = ${partId}
     `
-    const parteAnterior = partesAnteriores[0] as Parte
 
-    if (!parteAnterior) {
-      return NextResponse.json({ error: "Parte no encontrada" }, { status: 404 })
+    if (existingPart.length === 0) {
+      return createErrorResponse("Parte no encontrada", 404)
     }
 
-    const codigo = parteData.codigo?.toString().trim() || parteAnterior.codigo
-    const nombre = parteData.nombre?.toString().trim() || parteAnterior.nombre
-    const categoria = parteData.categoria || parteAnterior.categoria
-    const marca = parteData.marca?.toString().trim() || parteAnterior.marca
-    const modelo_compatible = parteData.modelo_compatible || parteData.modelo || parteAnterior.modelo_compatible
-    const ubicacion = parteData.ubicacion?.toString().trim() || parteAnterior.ubicacion
-    const proveedor = parteData.proveedor?.toString().trim() || parteAnterior.proveedor
-    const descripcion = parteData.descripcion?.toString().trim() || parteAnterior.descripcion
+    // Verificar si el número de parte ya existe en otra parte
+    const duplicatePart = await sql`
+      SELECT id FROM partes WHERE numero_parte = ${numero_parte} AND id != ${partId}
+    `
 
-    let precio = Number(parteData.precio)
-    let stock = Number(parteData.stock)
-    let stock_minimo = Number(parteData.stock_minimo || parteData.stockMinimo)
+    if (duplicatePart.length > 0) {
+      return createErrorResponse("El número de parte ya existe", 400)
+    }
 
-    if (isNaN(precio)) precio = Number(parteAnterior.precio)
-    if (isNaN(stock)) stock = Number(parteAnterior.stock)
-    if (isNaN(stock_minimo)) stock_minimo = Number(parteAnterior.stock_minimo)
-
-    const result = await sql`
+    const updatedPart = await sql`
       UPDATE partes SET
-        codigo = ${codigo},
+        numero_parte = ${numero_parte},
         nombre = ${nombre},
+        descripcion = ${descripcion || ""},
         categoria = ${categoria},
-        marca = ${marca},
-        modelo_compatible = ${modelo_compatible},
-        precio = ${precio},
-        stock = ${stock},
-        stock_minimo = ${stock_minimo},
-        ubicacion = ${ubicacion},
-        proveedor = ${proveedor},
-        descripcion = ${descripcion},
-        fecha_actualizacion = CURRENT_TIMESTAMP,
-        usuario_actualizacion = ${user.id}
-      WHERE id = ${parteId}
+        ubicacion = ${ubicacion || ""},
+        cantidad_stock = ${cantidad_stock || 0},
+        stock_minimo = ${stock_minimo || 0},
+        precio_unitario = ${precio_unitario || 0},
+        proveedor = ${proveedor || ""},
+        fecha_actualizacion = NOW()
+      WHERE id = ${partId}
       RETURNING *
     `
 
-    const parteActualizada = result[0] as Parte
-
-    const parteFormateada = {
-      ...parteActualizada,
-      precio: Number(parteActualizada.precio),
-      stock: Number(parteActualizada.stock),
-      stock_minimo: Number(parteActualizada.stock_minimo),
+    // Registrar actividad
+    try {
+      await sql`
+        INSERT INTO historial_actividades (usuario_id, accion, tabla_afectada, registro_id, detalles)
+        VALUES (${user.id}, 'UPDATE', 'partes', ${partId}, ${"Parte actualizada: " + nombre})
+      `
+    } catch (error) {
+      console.error("Error logging activity:", error)
     }
 
-    const ipAddress = request.ip || request.headers.get("x-forwarded-for") || "unknown"
-    const userAgent = request.headers.get("user-agent") || "unknown"
-
-    await logAction(user.id, "UPDATE", "partes", parteId, parteAnterior, parteData, ipAddress, userAgent)
-
-    return NextResponse.json(parteFormateada)
-  } catch (error: any) {
-    console.error("Error actualizando parte:", error)
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+    return createSuccessResponse(updatedPart[0])
+  } catch (error) {
+    console.error("Error updating part:", error)
+    return createErrorResponse("Error interno del servidor", 500)
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "")
+    const authHeader = request.headers.get("authorization")
+    const token = authHeader?.replace("Bearer ", "")
 
     if (!token) {
-      return NextResponse.json({ error: "Token no proporcionado" }, { status: 401 })
+      return createErrorResponse("Token de autorización requerido", 401)
     }
 
     const user = await getUserFromToken(token)
     if (!user) {
-      return NextResponse.json({ error: "Token inválido" }, { status: 401 })
+      return createErrorResponse("Token inválido", 401)
     }
 
+    // Solo admin y supervisor pueden eliminar
     if (user.rol === "empleado") {
-      return NextResponse.json({ error: "No tienes permisos para eliminar partes" }, { status: 403 })
+      return createErrorResponse("No tienes permisos para eliminar partes", 403)
     }
 
-    const { id } = await params
-    const parteId = Number.parseInt(id)
+    const partId = Number.parseInt(params.id)
+    if (isNaN(partId)) {
+      return createErrorResponse("ID de parte inválido", 400)
+    }
 
-    const partesAnteriores = await sql`
-      SELECT * FROM partes WHERE id = ${parteId}
+    // Verificar que la parte existe
+    const existingPart = await sql`
+      SELECT nombre FROM partes WHERE id = ${partId}
     `
-    const parteAnterior = partesAnteriores[0] as Parte
 
-    if (!parteAnterior) {
-      return NextResponse.json({ error: "Parte no encontrada" }, { status: 404 })
+    if (existingPart.length === 0) {
+      return createErrorResponse("Parte no encontrada", 404)
     }
 
-    await sql`DELETE FROM partes WHERE id = ${parteId}`
+    await sql`DELETE FROM partes WHERE id = ${partId}`
 
-    const ipAddress = request.ip || request.headers.get("x-forwarded-for") || "unknown"
-    const userAgent = request.headers.get("user-agent") || "unknown"
+    // Registrar actividad
+    try {
+      await sql`
+        INSERT INTO historial_actividades (usuario_id, accion, tabla_afectada, registro_id, detalles)
+        VALUES (${user.id}, 'DELETE', 'partes', ${partId}, ${"Parte eliminada: " + existingPart[0].nombre})
+      `
+    } catch (error) {
+      console.error("Error logging activity:", error)
+    }
 
-    await logAction(user.id, "DELETE", "partes", parteId, parteAnterior, null, ipAddress, userAgent)
-
-    return NextResponse.json({ message: "Parte eliminada exitosamente" })
+    return createSuccessResponse({ message: "Parte eliminada exitosamente" })
   } catch (error) {
-    console.error("Error eliminando parte:", error)
-    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+    console.error("Error deleting part:", error)
+    return createErrorResponse("Error interno del servidor", 500)
   }
 }

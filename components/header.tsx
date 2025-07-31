@@ -1,8 +1,7 @@
 "use client"
 
-import { Bell, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { LogOut, User } from "lucide-react"
 import type { Usuario } from "@/lib/database"
 
 interface HeaderProps {
@@ -11,46 +10,43 @@ interface HeaderProps {
 }
 
 export function Header({ user, onLogout }: HeaderProps) {
-  const getRoleBadge = (rol: string) => {
-    const colors = {
-      admin: "bg-red-500",
-      supervisor: "bg-blue-500",
-      empleado: "bg-green-500",
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      })
+    } catch (error) {
+      console.error("Error during logout:", error)
+    } finally {
+      onLogout()
     }
-    return colors[rol as keyof typeof colors] || "bg-gray-500"
-  }
-
-  const getRoleLabel = (rol: string) => {
-    const labels = {
-      admin: "ADMINISTRADOR",
-      supervisor: "SUPERVISOR",
-      empleado: "EMPLEADO",
-    }
-    return labels[rol as keyof typeof labels] || rol.toUpperCase()
   }
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
-      <div className="flex items-center justify-between">
+    <header className="bg-white shadow-sm border-b border-gray-200">
+      <div className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-gray-900">AutoPartes Pro</h1>
+          <h1 className="text-xl font-semibold text-gray-900">Sistema de Inventario de Autopartes</h1>
         </div>
         <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <User className="h-5 w-5 text-gray-600" />
-            <div className="text-right">
-              <p className="text-sm font-medium text-gray-900">{user.nombre_completo}</p>
-              <div className="flex items-center space-x-2">
-                <p className="text-xs text-gray-500">@{user.username}</p>
-                <Badge className={`text-xs ${getRoleBadge(user.rol)} text-white`}>{getRoleLabel(user.rol)}</Badge>
-              </div>
-            </div>
+          <div className="flex items-center space-x-2 text-sm text-gray-600">
+            <User className="h-4 w-4" />
+            <span>{user.nombre_completo}</span>
+            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+              {user.rol.charAt(0).toUpperCase() + user.rol.slice(1)}
+            </span>
           </div>
-          <Button variant="ghost" size="icon">
-            <Bell className="h-5 w-5" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={onLogout} title="Cerrar Sesión">
-            <LogOut className="h-5 w-5" />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleLogout}
+            className="flex items-center space-x-2 bg-transparent"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Cerrar Sesión</span>
           </Button>
         </div>
       </div>

@@ -1,29 +1,28 @@
 "use client"
 
 import type React from "react"
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Loader2 } from "lucide-react"
 
 interface CrearUsuarioDialogProps {
-  isOpen: boolean
+  onSave: (userData: any) => Promise<{ success: boolean; error?: string }>
   onClose: () => void
-  onUserCreated: () => void
-  token: string
 }
 
-export function CrearUsuarioDialog({ isOpen, onClose, onUserCreated, token }: CrearUsuarioDialogProps) {
+export function CrearUsuarioDialog({ onSave, onClose }: CrearUsuarioDialogProps) {
   const [formData, setFormData] = useState({
     username: "",
-    email: "",
     password: "",
-    confirmPassword: "",
     nombre_completo: "",
-    rol: "empleado",
+    email: "",
+    rol: "",
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -33,42 +32,12 @@ export function CrearUsuarioDialog({ isOpen, onClose, onUserCreated, token }: Cr
     setLoading(true)
     setError("")
 
-    if (formData.password !== formData.confirmPassword) {
-      setError("Las contraseñas no coinciden")
-      setLoading(false)
-      return
-    }
-
     try {
-      const response = await fetch("/api/usuarios", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          username: formData.username,
-          email: formData.email,
-          password: formData.password,
-          nombre_completo: formData.nombre_completo,
-          rol: formData.rol,
-        }),
-      })
-
-      if (response.ok) {
-        setFormData({
-          username: "",
-          email: "",
-          password: "",
-          confirmPassword: "",
-          nombre_completo: "",
-          rol: "empleado",
-        })
-        onUserCreated()
+      const result = await onSave(formData)
+      if (result.success) {
         onClose()
       } else {
-        const errorData = await response.json()
-        setError(errorData.error)
+        setError(result.error || "Error al crear usuario")
       }
     } catch (err) {
       setError("Error de conexión con el servidor")
@@ -77,74 +46,76 @@ export function CrearUsuarioDialog({ isOpen, onClose, onUserCreated, token }: Cr
     }
   }
 
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const handleClose = () => {
-    setFormData({
-      username: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-      nombre_completo: "",
-      rol: "empleado",
-    })
-    setError("")
-    onClose()
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Crear Nuevo Usuario</DialogTitle>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="username">Usuario *</Label>
+          <div className="space-y-2">
+            <Label htmlFor="username">Nombre de Usuario *</Label>
             <Input
               id="username"
-              type="text"
               value={formData.username}
-              onChange={(e) => handleChange("username", e.target.value)}
+              onChange={(e) => handleInputChange("username", e.target.value)}
               placeholder="usuario123"
               required
               disabled={loading}
             />
           </div>
 
-          <div>
-            <Label htmlFor="email">Email *</Label>
+          <div className="space-y-2">
+            <Label htmlFor="password">Contraseña *</Label>
             <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => handleChange("email", e.target.value)}
-              placeholder="usuario@ejemplo.com"
+              id="password"
+              type="password"
+              value={formData.password}
+              onChange={(e) => handleInputChange("password", e.target.value)}
+              placeholder="Contraseña segura"
               required
               disabled={loading}
             />
           </div>
 
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="nombre_completo">Nombre Completo *</Label>
             <Input
               id="nombre_completo"
-              type="text"
               value={formData.nombre_completo}
-              onChange={(e) => handleChange("nombre_completo", e.target.value)}
+              onChange={(e) => handleInputChange("nombre_completo", e.target.value)}
               placeholder="Juan Pérez"
               required
               disabled={loading}
             />
           </div>
 
-          <div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email *</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => handleInputChange("email", e.target.value)}
+              placeholder="usuario@empresa.com"
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="rol">Rol *</Label>
-            <Select value={formData.rol} onValueChange={(value) => handleChange("rol", value)} disabled={loading}>
+            <Select value={formData.rol} onValueChange={(value) => handleInputChange("rol", value)} disabled={loading}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Seleccionar rol" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="empleado">Empleado</SelectItem>
@@ -154,54 +125,27 @@ export function CrearUsuarioDialog({ isOpen, onClose, onUserCreated, token }: Cr
             </Select>
           </div>
 
-          <div>
-            <Label htmlFor="password">Contraseña *</Label>
-            <Input
-              id="password"
-              type="password"
-              value={formData.password}
-              onChange={(e) => handleChange("password", e.target.value)}
-              placeholder="Mínimo 6 caracteres"
-              required
-              disabled={loading}
-              minLength={6}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="confirmPassword">Confirmar Contraseña *</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              value={formData.confirmPassword}
-              onChange={(e) => handleChange("confirmPassword", e.target.value)}
-              placeholder="Repite la contraseña"
-              required
-              disabled={loading}
-              minLength={6}
-            />
-          </div>
-
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          <div className="flex space-x-4 pt-4">
-            <Button type="submit" className="flex-1" disabled={loading}>
-              {loading ? "Creando..." : "Crear Usuario"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1 bg-transparent"
-              onClick={handleClose}
-              disabled={loading}
-            >
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               Cancelar
             </Button>
-          </div>
+            <Button type="submit" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creando...
+                </>
+              ) : (
+                "Crear Usuario"
+              )}
+            </Button>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

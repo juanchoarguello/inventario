@@ -121,12 +121,12 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 },
     )
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error en registro:", error)
 
     // Manejar errores de base de datos
-    if (error.code) {
-      const dbError = handleDatabaseError(error)
+    if (error && typeof error === "object" && "code" in error) {
+      const dbError = handleDatabaseError(error as { code?: string; constraint?: string })
       return NextResponse.json(
         {
           error: dbError.userMessage,
