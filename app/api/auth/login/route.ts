@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     // Registrar actividad de login
     try {
       await sql`
-        INSERT INTO historial_actividades (usuario_id, accion, tabla_afectada, registro_id, detalles)
+        INSERT INTO historial_acciones (usuario_id, accion, tabla_afectada, registro_id, detalles)
         VALUES (${user.id}, 'LOGIN', 'usuarios', ${user.id}, 'Usuario inició sesión')
       `
     } catch (error) {

@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
         // Registrar actividad de logout
         try {
           await sql`
-            INSERT INTO historial_actividades (usuario_id, accion, tabla_afectada, registro_id, detalles)
+            INSERT INTO historial_acciones (usuario_id, accion, tabla_afectada, registro_id, detalles)
             VALUES (${user.id}, 'LOGOUT', 'usuarios', ${user.id}, 'Usuario cerró sesión')
           `
         } catch (error) {

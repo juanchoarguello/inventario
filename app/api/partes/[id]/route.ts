@@ -72,7 +72,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     // Registrar actividad
     try {
       await sql`
-        INSERT INTO historial_actividades (usuario_id, accion, tabla_afectada, registro_id, detalles)
+        INSERT INTO historial_acciones (usuario_id, accion, tabla_afectada, registro_id, detalles)
         VALUES (${user.id}, 'UPDATE', 'partes', ${partId}, ${"Parte actualizada: " + nombre})
       `
     } catch (error) {
@@ -124,7 +124,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     // Registrar actividad
     try {
       await sql`
-        INSERT INTO historial_actividades (usuario_id, accion, tabla_afectada, registro_id, detalles)
+        INSERT INTO historial_acciones (usuario_id, accion, tabla_afectada, registro_id, detalles)
         VALUES (${user.id}, 'DELETE', 'partes', ${partId}, ${"Parte eliminada: " + existingPart[0].nombre})
       `
     } catch (error) {

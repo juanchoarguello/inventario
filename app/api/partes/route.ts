@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     // Registrar actividad
     try {
       await sql`
-        INSERT INTO historial_actividades (usuario_id, accion, tabla_afectada, registro_id, detalles)
+        INSERT INTO historial_acciones (usuario_id, accion, tabla_afectada, registro_id, detalles)
         VALUES (${user.id}, 'CREATE', 'partes', ${newPart[0].id}, ${"Parte creada: " + nombre})
       `
     } catch (error) {

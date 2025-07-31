@@ -15,7 +15,10 @@ export interface Usuario {
   activo: boolean
   fecha_creacion: string
 }
-
+export async function getPosts() {
+  const result = await sql`SELECT * FROM posts`;
+  return result;
+}
 export interface Parte {
   id: number
   numero_parte: string

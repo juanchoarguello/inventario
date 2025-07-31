@@ -30,9 +30,9 @@ export async function GET(request: NextRequest) {
       SELECT 
         h.*,
         u.nombre_completo as usuario_nombre
-      FROM historial_actividades h
+      FROM historial_acciones h
       LEFT JOIN usuarios u ON h.usuario_id = u.id
-      ORDER BY h.fecha_creacion DESC
+      ORDER BY h.fecha_accion DESC
       LIMIT ${limit}
       OFFSET ${offset}
     `
