@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -20,11 +20,7 @@ export function ActionHistory({ token }: ActionHistoryProps) {
   const [history, setHistory] = useState<HistorialConUsuario[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadHistory()
-  }, [])
-
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     setLoading(true)
     try {
       const response = await fetch("/api/historial", {
@@ -42,7 +38,11 @@ export function ActionHistory({ token }: ActionHistoryProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [token])
+
+  useEffect(() => {
+    loadHistory()
+  }, [loadHistory])
 
   const getActionBadge = (accion: string) => {
     const config = {

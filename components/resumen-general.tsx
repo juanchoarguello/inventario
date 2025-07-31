@@ -33,8 +33,6 @@ export function ResumenGeneral({ parts }: ResumenGeneralProps) {
   const partesElectricas = parts.filter((part) => part.categoria === "electrica").length
   const partesMotor = parts.filter((part) => part.categoria === "motor").length
   const partesFrenos = parts.filter((part) => part.categoria === "frenos").length
-  const partesSuspension = parts.filter((part) => part.categoria === "suspension").length
-  const partesTransmision = parts.filter((part) => part.categoria === "transmision").length
 
   const getCategoriaLabel = (categoria: string) => {
     const labels = {

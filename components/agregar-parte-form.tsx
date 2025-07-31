@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Plus } from "lucide-react"
 
 interface AgregarParteFormProps {
-  onAddPart: (part: any) => Promise<{ success: boolean; error?: string }>
+  onAddPart: (part: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>
 }
 
 export function AgregarParteForm({ onAddPart }: AgregarParteFormProps) {
@@ -66,7 +66,8 @@ export function AgregarParteForm({ onAddPart }: AgregarParteFormProps) {
       } else {
         setError(result.error || "Error al crear la parte")
       }
-    } catch (err) {
+    } catch (error) {
+      console.error("Error adding part:", error)
       setError("Error de conexión con el servidor")
     } finally {
       setLoading(false)

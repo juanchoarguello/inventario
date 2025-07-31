@@ -76,10 +76,47 @@ export async function authenticateUser(username: string, password: string): Prom
     if (!isValidPassword) return null
 
     // Remover password_hash del objeto retornado
-    const { password_hash, ...userWithoutPassword } = user
+    const { password_hash: _, ...userWithoutPassword } = user
     return userWithoutPassword
   } catch (error) {
     console.error("Error authenticating user:", error)
     return null
+  }
+}
+
+export async function logAction(
+  userId: number,
+  accion: string,
+  tabla: string,
+  registroId: number | null,
+  datosAnteriores: Record<string, unknown> | null,
+  datosNuevos: Record<string, unknown> | null,
+  ipAddress: string,
+  userAgent: string,
+): Promise<void> {
+  try {
+    await sql`
+      INSERT INTO historial_acciones (
+        usuario_id, 
+        accion, 
+        tabla_afectada, 
+        registro_id, 
+        datos_anteriores, 
+        datos_nuevos, 
+        ip_address, 
+        user_agent
+      ) VALUES (
+        ${userId}, 
+        ${accion}, 
+        ${tabla}, 
+        ${registroId}, 
+        ${datosAnteriores ? JSON.stringify(datosAnteriores) : null}, 
+        ${datosNuevos ? JSON.stringify(datosNuevos) : null}, 
+        ${ipAddress}, 
+        ${userAgent}
+      )
+    `
+  } catch (error) {
+    console.error("Error logging action:", error)
   }
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { ResumenGeneral } from "@/components/resumen-general"
 import { Inventario } from "@/components/inventario"
 import { AgregarParteForm } from "@/components/agregar-parte-form"
@@ -21,11 +21,7 @@ export function Dashboard({ user, token, onLogout }: DashboardProps) {
   const [parts, setParts] = useState<Parte[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadParts()
-  }, [token])
-
-  const loadParts = async () => {
+  const loadParts = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch("/api/partes", {
@@ -47,7 +43,11 @@ export function Dashboard({ user, token, onLogout }: DashboardProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [token])
+
+  useEffect(() => {
+    loadParts()
+  }, [loadParts])
 
   const addPart = async (newPart: Record<string, unknown>) => {
     try {
