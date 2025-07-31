@@ -12,6 +12,15 @@ import { FieldError, useErrorHandler } from "./error-display"
 import type { AppError } from "@/lib/error-handler"
 import type { Usuario } from "@/lib/database"
 
+interface UpdateData {
+  username: string
+  email: string
+  nombre_completo: string
+  rol: string
+  activo: boolean
+  password?: string
+}
+
 interface EditUserDialogProps {
   user: Usuario | null
   isOpen: boolean
@@ -57,7 +66,6 @@ export function EditUserDialog({ user, isOpen, onClose, onUserUpdated, token }: 
     setLoading(true)
     setError(null)
 
-    // Validar contraseñas si se está cambiando
     if (changePassword) {
       if (formData.password !== formData.confirmPassword) {
         setError({
@@ -83,7 +91,7 @@ export function EditUserDialog({ user, isOpen, onClose, onUserUpdated, token }: 
     }
 
     try {
-      const updateData: any = {
+      const updateData: UpdateData = {
         username: formData.username,
         email: formData.email,
         nombre_completo: formData.nombre_completo,
@@ -125,7 +133,6 @@ export function EditUserDialog({ user, isOpen, onClose, onUserUpdated, token }: 
 
   const handleChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-    // Limpiar error del campo si existe
     if (error?.field === field) {
       setError(null)
     }

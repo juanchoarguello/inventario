@@ -13,8 +13,21 @@ import { ErrorDisplay, FieldError, useErrorHandler } from "./error-display"
 import type { AppError } from "@/lib/error-handler"
 import { FormHelp } from "./form-help"
 
+interface PartData {
+  codigo: string
+  nombre: string
+  categoria: string
+  marca: string
+  modelo: string
+  precio: number
+  stock: number
+  stockMinimo: number
+  ubicacion: string
+  proveedor: string
+}
+
 interface AddPartFormProps {
-  onAddPart: (part: any) => void
+  onAddPart: (part: PartData) => Promise<{ success: boolean; error?: string }>
 }
 
 export function AddPartForm({ onAddPart }: AddPartFormProps) {
@@ -80,11 +93,9 @@ export function AddPartForm({ onAddPart }: AddPartFormProps) {
   }
 
   const handleNumericChange = (field: string, value: string) => {
-    // Permitir solo números y punto decimal
     const numericValue = value.replace(/[^0-9.]/g, "")
     setFormData((prev) => ({ ...prev, [field]: numericValue }))
 
-    // Limpiar error del campo si existe
     if (error?.field === field) {
       setError(null)
     }

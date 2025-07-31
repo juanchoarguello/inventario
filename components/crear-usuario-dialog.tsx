@@ -11,8 +11,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
 
+interface UserData {
+  username: string
+  password: string
+  nombre_completo: string
+  email: string
+  rol: string
+}
+
 interface CrearUsuarioDialogProps {
-  onSave: (userData: any) => Promise<{ success: boolean; error?: string }>
+  onSave: (userData: UserData) => Promise<{ success: boolean; error?: string }>
   onClose: () => void
 }
 
@@ -39,7 +47,7 @@ export function CrearUsuarioDialog({ onSave, onClose }: CrearUsuarioDialogProps)
       } else {
         setError(result.error || "Error al crear usuario")
       }
-    } catch (err) {
+    } catch {
       setError("Error de conexión con el servidor")
     } finally {
       setLoading(false)

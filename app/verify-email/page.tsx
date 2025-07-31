@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -14,16 +14,7 @@ export default function VerifyEmailPage() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
 
-  useEffect(() => {
-    if (token) {
-      verifyEmail()
-    } else {
-      setError("Token de verificación no válido")
-      setLoading(false)
-    }
-  }, [token])
-
-  const verifyEmail = async () => {
+  const verifyEmail = useCallback(async () => {
     try {
       const response = await fetch("/api/auth/verify-email", {
         method: "POST",
@@ -36,15 +27,24 @@ export default function VerifyEmailPage() {
       if (response.ok) {
         setSuccess(true)
       } else {
-        const error = await response.json()
-        setError(error.error)
+        const errorData = await response.json()
+        setError(errorData.error)
       }
-    } catch (error) {
+    } catch {
       setError("Error de conexión con el servidor")
     } finally {
       setLoading(false)
     }
-  }
+  }, [token])
+
+  useEffect(() => {
+    if (token) {
+      verifyEmail()
+    } else {
+      setError("Token de verificación no válido")
+      setLoading(false)
+    }
+  }, [token, verifyEmail])
 
   if (loading) {
     return (
