@@ -2,13 +2,13 @@ import { type NextRequest, NextResponse } from "next/server"
 import { UsuariosRepository } from "@/lib/usuarios"
 import { HistorialRepository } from "@/lib/historial"
 import { PasswordService } from "@/lib/password"
-import { withAdminAuth } from "@/lib/auth"
+import { withAdminAuthParams } from "@/lib/auth"
 import { extractRequestInfo } from "@/lib/request"
 import type { CreateUserData } from "@/lib/types"
 
-export const PUT = withAdminAuth(async (request: NextRequest, user, context) => {
+export const PUT = withAdminAuthParams(async (request: NextRequest, user, context) => {
   try {
-    const params = context?.params ? await context.params : {}
+    const params = await context.params
     const id = Number.parseInt(params.id as string)
 
     if (isNaN(id)) {
@@ -63,9 +63,9 @@ export const PUT = withAdminAuth(async (request: NextRequest, user, context) => 
   }
 })
 
-export const DELETE = withAdminAuth(async (request: NextRequest, user, context) => {
+export const DELETE = withAdminAuthParams(async (request: NextRequest, user, context) => {
   try {
-    const params = context?.params ? await context.params : {}
+    const params = await context.params
     const id = Number.parseInt(params.id as string)
 
     if (isNaN(id)) {

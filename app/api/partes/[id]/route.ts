@@ -1,13 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { PartesRepository } from "@/lib/partes"
 import { HistorialRepository } from "@/lib/historial"
-import { withAuth } from "@/lib/auth"
+import { withAuthParams } from "@/lib/auth"
 import { extractRequestInfo } from "@/lib/request"
 import type { UpdateParteData } from "@/lib/types"
 
-export const PUT = withAuth(async (request: NextRequest, user, context) => {
+export const PUT = withAuthParams(async (request: NextRequest, user, context) => {
   try {
-    const params = context?.params ? await context.params : {}
+    const params = await context.params
     const id = Number.parseInt(params.id as string)
 
     if (isNaN(id)) {
@@ -52,11 +52,11 @@ export const PUT = withAuth(async (request: NextRequest, user, context) => {
   }
 })
 
-export const DELETE = withAuth(async (request: NextRequest, user, context) => {
+export const DELETE = withAuthParams(async (request: NextRequest, user, context) => {
   try {
     console.log("DELETE request recibido", { context, user: user.id })
 
-    const params = context?.params ? await context.params : {}
+    const params = await context.params
     const id = Number.parseInt(params.id as string)
 
     console.log(`Procesando eliminación de parte ID: ${id}`)
