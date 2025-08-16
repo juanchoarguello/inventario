@@ -39,7 +39,7 @@ export class HistorialRepository {
         RETURNING id
       `
 
-      console.log(`Acción registrada en historial con ID:`, result[0]?.id)
+      console.log(`Acción registrada en historial con ID:`, (result[0] as any)?.id)
     } catch (error) {
       console.error("Error registrando acción en historial:", error)
       // No lanzar error para no interrumpir la operación principal

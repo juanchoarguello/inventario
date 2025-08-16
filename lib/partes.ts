@@ -7,21 +7,21 @@ export class PartesRepository {
       SELECT * FROM partes 
       ORDER BY fecha_creacion DESC
     `
-    return result
+    return result as Parte[]
   }
 
   static async findById(id: number): Promise<Parte | null> {
     const result = await sql`
       SELECT * FROM partes WHERE id = ${id}
     `
-    return result[0] || null
+    return (result[0] as Parte) || null
   }
 
   static async findByCodigo(codigo: string): Promise<Parte | null> {
     const result = await sql`
       SELECT * FROM partes WHERE codigo = ${codigo}
     `
-    return result[0] || null
+    return (result[0] as Parte) || null
   }
 
   static async findByCategoria(categoria: string): Promise<Parte[]> {
@@ -30,7 +30,7 @@ export class PartesRepository {
       WHERE categoria = ${categoria}
       ORDER BY nombre
     `
-    return result
+    return result as Parte[]
   }
 
   static async findStockBajo(): Promise<Parte[]> {
@@ -39,7 +39,7 @@ export class PartesRepository {
       WHERE stock <= stock_minimo
       ORDER BY stock ASC
     `
-    return result
+    return result as Parte[]
   }
 
   static async search(query: string): Promise<Parte[]> {
@@ -52,7 +52,7 @@ export class PartesRepository {
          OR marca ILIKE ${searchTerm}
       ORDER BY nombre
     `
-    return result
+    return result as Parte[]
   }
 
   static async create(parteData: CreateParteData, usuarioId: number): Promise<Parte> {
@@ -69,7 +69,7 @@ export class PartesRepository {
       )
       RETURNING *
     `
-    return result[0]
+    return result[0] as Parte
   }
 
   static async update(id: number, parteData: Partial<UpdateParteData>, usuarioId: number): Promise<Parte | null> {
@@ -91,7 +91,7 @@ export class PartesRepository {
       WHERE id = ${id}
       RETURNING *
     `
-    return result[0] || null
+    return (result[0] as Parte) || null
   }
 
   static async delete(id: number): Promise<boolean> {
@@ -153,20 +153,20 @@ export class PartesRepository {
     const result = await sql`
       SELECT COUNT(*) as count FROM partes
     `
-    return Number.parseInt(result[0].count)
+    return Number.parseInt((result[0] as any).count)
   }
 
   static async getTotalValue(): Promise<number> {
     const result = await sql`
       SELECT SUM(stock * precio) as total FROM partes
     `
-    return Number.parseFloat(result[0].total || "0")
+    return Number.parseFloat((result[0] as any).total || "0")
   }
 
   static async getCategories(): Promise<string[]> {
     const result = await sql`
       SELECT DISTINCT categoria FROM partes ORDER BY categoria
     `
-    return result.map((row) => row.categoria)
+    return result.map((row: any) => row.categoria)
   }
 }

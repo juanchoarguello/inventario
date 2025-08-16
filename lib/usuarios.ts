@@ -23,7 +23,7 @@ export class UsuariosRepository {
         AND activo = true
       `
 
-      return result[0] || null
+      return (result[0] as Usuario) || null
     } catch (error) {
       console.error("Error finding user by email:", error)
       throw new Error("Database query failed")
@@ -47,7 +47,7 @@ export class UsuariosRepository {
         WHERE id = ${id} AND activo = true
       `
 
-      return result[0] || null
+      return (result[0] as Usuario) || null
     } catch (error) {
       console.error("Error finding user by ID:", error)
       throw new Error("Database query failed")
@@ -67,7 +67,7 @@ export class UsuariosRepository {
         ORDER BY fecha_creacion DESC
       `
 
-      return result
+      return result as Usuario[]
     } catch (error) {
       console.error("Error finding all users:", error)
       throw new Error("Database query failed")
@@ -96,7 +96,7 @@ export class UsuariosRepository {
         RETURNING id, nombre, email, rol, activo, fecha_creacion
       `
 
-      return result[0]
+      return result[0] as Usuario
     } catch (error) {
       console.error("Error creating user:", error)
       throw new Error("Failed to create user")
@@ -137,7 +137,7 @@ export class UsuariosRepository {
 
       console.log("Update result:", result)
 
-      return result[0] || null
+      return (result[0] as Usuario) || null
     } catch (error) {
       console.error("Error updating user:", error)
       throw new Error("Failed to update user")
@@ -199,7 +199,7 @@ export class UsuariosRepository {
         SELECT COUNT(*) as count FROM usuarios WHERE activo = true
       `
 
-      return Number.parseInt(result[0].count)
+      return Number.parseInt((result[0] as any).count)
     } catch (error) {
       console.error("Error counting users:", error)
       throw new Error("Failed to count users")
