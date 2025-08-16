@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { JwtService } from "@/lib/jwt"
-import type { AuthUser } from "@/lib/types"
+import type { AuthUser } from "@/lib/index"
 
 // Tipo para el contexto de Next.js 15
 type RouteContext = {

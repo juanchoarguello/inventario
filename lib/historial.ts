@@ -1,5 +1,5 @@
 import { sql } from "@/lib/database"
-import type { HistorialAccion } from "@/lib/types"
+import type { HistorialAccion } from "@/lib/index"
 
 export class HistorialRepository {
   /**
@@ -58,7 +58,7 @@ export class HistorialRepository {
         ORDER BY h.fecha DESC
         LIMIT ${limit}
       `
-      return result
+      return result as HistorialAccion[]
     } catch (error) {
       console.error("Error obteniendo historial:", error)
       return []
@@ -78,7 +78,7 @@ export class HistorialRepository {
         ORDER BY h.fecha DESC
         LIMIT ${limit}
       `
-      return result
+      return result as HistorialAccion[]
     } catch (error) {
       console.error("Error obteniendo historial por usuario:", error)
       return []
@@ -98,7 +98,7 @@ export class HistorialRepository {
         ORDER BY h.fecha DESC
         LIMIT ${limit}
       `
-      return result
+      return result as HistorialAccion[]
     } catch (error) {
       console.error("Error obteniendo historial por tabla:", error)
       return []

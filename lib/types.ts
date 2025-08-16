@@ -39,6 +39,7 @@ export interface HistorialAccion {
   direccion_ip?: string
   user_agent?: string
   fecha: string
+  usuario_nombre?: string
 }
 
 export interface AuthUser {

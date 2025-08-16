@@ -1,5 +1,5 @@
 import { sql } from "@/lib/database"
-import type { Parte, CreateParteData, UpdateParteData } from "@/lib/types"
+import type { Parte, CreateParteData, UpdateParteData } from "@/lib/index"
 
 export class PartesRepository {
   static async findAll(): Promise<Parte[]> {

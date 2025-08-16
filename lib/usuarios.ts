@@ -1,5 +1,5 @@
 import { sql } from "@/lib/database"
-import type { Usuario, CreateUserData } from "@/lib/types"
+import type { Usuario, CreateUserData } from "@/lib/index"
 
 /**
  * Repositorio para operaciones de usuarios en la base de datos

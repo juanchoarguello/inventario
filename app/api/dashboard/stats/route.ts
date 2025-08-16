@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { PartesRepository } from "@/lib/partes"
 import { UsuariosRepository } from "@/lib/usuarios"
 import { withAuth } from "@/lib/auth"
-import type { DashboardStats } from "@/lib/types"
+import type { DashboardStats } from "@/lib/index"
 
 export const GET = withAuth(async (request, user) => {
   try {

@@ -3,7 +3,7 @@ import { PartesRepository } from "@/lib/partes"
 import { HistorialRepository } from "@/lib/historial"
 import { withAuthParams } from "@/lib/auth"
 import { extractRequestInfo } from "@/lib/request"
-import type { UpdateParteData } from "@/lib/types"
+import type { UpdateParteData } from "@/lib/index"
 
 export const PUT = withAuthParams(async (request: NextRequest, user, context) => {
   try {

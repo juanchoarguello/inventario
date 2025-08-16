@@ -4,7 +4,7 @@ import { HistorialRepository } from "@/lib/historial"
 import { PasswordService } from "@/lib/password"
 import { withAdminAuthParams } from "@/lib/auth"
 import { extractRequestInfo } from "@/lib/request"
-import type { CreateUserData } from "@/lib/types"
+import type { CreateUserData } from "@/lib/index"
 
 export const PUT = withAdminAuthParams(async (request: NextRequest, user, context) => {
   try {

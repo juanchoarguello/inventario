@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken"
-import type { AuthUser } from "@/lib/types"
+import type { AuthUser } from "@/lib/index"
 
 export class JwtService {
   private static readonly SECRET = process.env.JWT_SECRET || "fallback-secret-key"

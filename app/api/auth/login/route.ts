@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { UsuariosRepository } from "@/lib/usuarios"
 import { PasswordService } from "@/lib/password"
 import { JwtService } from "@/lib/jwt"
-import type { LoginCredentials } from "@/lib/types"
+import type { LoginCredentials } from "@/lib/index"
 
 /**
  * Endpoint de autenticación de usuarios
