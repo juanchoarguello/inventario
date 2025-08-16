@@ -7,11 +7,8 @@ import type { UpdateParteData } from "@/lib/types"
 
 export const PUT = withAuth(async (request: NextRequest, user, context) => {
   try {
-    if (!context?.params?.id) {
-      return NextResponse.json({ error: "ID de parte requerido" }, { status: 400 })
-    }
-
-    const id = Number.parseInt(context.params.id)
+    const params = context?.params ? await context.params : {}
+    const id = Number.parseInt(params.id as string)
 
     if (isNaN(id)) {
       return NextResponse.json({ error: "ID de parte inválido" }, { status: 400 })
@@ -59,16 +56,13 @@ export const DELETE = withAuth(async (request: NextRequest, user, context) => {
   try {
     console.log("DELETE request recibido", { context, user: user.id })
 
-    if (!context?.params?.id) {
-      console.error("No se proporcionó ID de parte")
-      return NextResponse.json({ error: "ID de parte requerido" }, { status: 400 })
-    }
+    const params = context?.params ? await context.params : {}
+    const id = Number.parseInt(params.id as string)
 
-    const id = Number.parseInt(context.params.id)
     console.log(`Procesando eliminación de parte ID: ${id}`)
 
     if (isNaN(id)) {
-      console.error(`ID de parte inválido: ${context.params.id}`)
+      console.error(`ID de parte inválido: ${params.id}`)
       return NextResponse.json({ error: "ID de parte inválido" }, { status: 400 })
     }
 

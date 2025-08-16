@@ -8,11 +8,8 @@ import type { CreateUserData } from "@/lib/types"
 
 export const PUT = withAdminAuth(async (request: NextRequest, user, context) => {
   try {
-    if (!context?.params?.id) {
-      return NextResponse.json({ error: "ID de usuario requerido" }, { status: 400 })
-    }
-
-    const id = Number.parseInt(context.params.id)
+    const params = context?.params ? await context.params : {}
+    const id = Number.parseInt(params.id as string)
 
     if (isNaN(id)) {
       return NextResponse.json({ error: "ID de usuario inválido" }, { status: 400 })
@@ -68,11 +65,8 @@ export const PUT = withAdminAuth(async (request: NextRequest, user, context) => 
 
 export const DELETE = withAdminAuth(async (request: NextRequest, user, context) => {
   try {
-    if (!context?.params?.id) {
-      return NextResponse.json({ error: "ID de usuario requerido" }, { status: 400 })
-    }
-
-    const id = Number.parseInt(context.params.id)
+    const params = context?.params ? await context.params : {}
+    const id = Number.parseInt(params.id as string)
 
     if (isNaN(id)) {
       return NextResponse.json({ error: "ID de usuario inválido" }, { status: 400 })
