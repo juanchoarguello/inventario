@@ -110,31 +110,16 @@ export class PartesRepository {
 
       console.log(`Parte existe, procediendo con eliminación...`)
 
-      // Ejecutar DELETE y obtener el resultado
+      // Ejecutar DELETE - en Neon esto devuelve un array vacío si se elimina correctamente
       const result = await sql`
         DELETE FROM partes WHERE id = ${id}
       `
 
       console.log(`Resultado completo de DELETE:`, result)
-      console.log(`Propiedades del resultado:`, Object.keys(result))
+      console.log(`Tipo de resultado:`, typeof result)
+      console.log(`Es array:`, Array.isArray(result))
 
-      // En Neon, el resultado puede tener diferentes propiedades
-      // Intentar diferentes formas de verificar si se eliminó
-      let deletedCount = 0
-
-      if (typeof result.count !== "undefined") {
-        deletedCount = result.count
-      } else if (typeof result.rowCount !== "undefined") {
-        deletedCount = result.rowCount
-      } else if (Array.isArray(result)) {
-        deletedCount = result.length
-      } else if (result.changes) {
-        deletedCount = result.changes
-      }
-
-      console.log(`Filas eliminadas: ${deletedCount}`)
-
-      // Verificar que realmente se eliminó
+      // ✅ CORREGIDO: Para Neon, verificar directamente si se eliminó
       const verifyDeleted = await sql`
         SELECT id FROM partes WHERE id = ${id}
       `
