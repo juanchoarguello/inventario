@@ -2,11 +2,11 @@ import { sql } from "@/lib/database"
 import type { Parte, CreateParteData, UpdateParteData } from "@/lib/index"
 
 export class PartesRepository {
-  static async findAll(): Promise<Parte[]> {
-    const result = await sql`
-      SELECT * FROM partes 
-      ORDER BY fecha_creacion DESC
-    `
+  static async findAll(includeInactive: boolean = false): Promise<Parte[]> {
+    const result = includeInactive 
+      ? await sql`SELECT * FROM partes ORDER BY fecha_creacion DESC`
+      : await sql`SELECT * FROM partes WHERE activo = true ORDER BY fecha_creacion DESC`
+    
     return result as Parte[]
   }
 
@@ -27,7 +27,7 @@ export class PartesRepository {
   static async findByCategoria(categoria: string): Promise<Parte[]> {
     const result = await sql`
       SELECT * FROM partes 
-      WHERE categoria = ${categoria}
+      WHERE categoria = ${categoria} AND activo = true
       ORDER BY nombre
     `
     return result as Parte[]
@@ -36,7 +36,7 @@ export class PartesRepository {
   static async findStockBajo(): Promise<Parte[]> {
     const result = await sql`
       SELECT * FROM partes 
-      WHERE stock <= stock_minimo
+      WHERE stock <= stock_minimo AND activo = true
       ORDER BY stock ASC
     `
     return result as Parte[]
@@ -46,10 +46,11 @@ export class PartesRepository {
     const searchTerm = `%${query}%`
     const result = await sql`
       SELECT * FROM partes 
-      WHERE nombre ILIKE ${searchTerm} 
+      WHERE (nombre ILIKE ${searchTerm} 
          OR descripcion ILIKE ${searchTerm}
          OR codigo ILIKE ${searchTerm}
-         OR marca ILIKE ${searchTerm}
+         OR marca ILIKE ${searchTerm})
+        AND activo = true
       ORDER BY nombre
     `
     return result as Parte[]
@@ -59,13 +60,13 @@ export class PartesRepository {
     const result = await sql`
       INSERT INTO partes (
         nombre, descripcion, codigo, categoria, marca, modelo_compatible,
-        stock, stock_minimo, precio, proveedor, ubicacion, usuario_creacion
+        stock, stock_minimo, precio, proveedor, ubicacion, activo, usuario_creacion
       )
       VALUES (
         ${parteData.nombre}, ${parteData.descripcion}, ${parteData.codigo},
         ${parteData.categoria}, ${parteData.marca}, ${parteData.modelo_compatible},
         ${parteData.stock}, ${parteData.stock_minimo}, ${parteData.precio},
-        ${parteData.proveedor}, ${parteData.ubicacion}, ${usuarioId}
+        ${parteData.proveedor}, ${parteData.ubicacion}, true, ${usuarioId}
       )
       RETURNING *
     `
@@ -94,63 +95,94 @@ export class PartesRepository {
     return (result[0] as Parte) || null
   }
 
+  // Soft Delete: Desactivar en lugar de eliminar
   static async delete(id: number): Promise<boolean> {
     try {
-      console.log(`Ejecutando DELETE en base de datos para parte ID: ${id}`)
+      console.log(`Desactivando parte ID: ${id} (soft delete)`)
 
-      // Primero verificar que la parte existe
-      const existingParte = await sql`
-        SELECT id FROM partes WHERE id = ${id}
+      // Verificar si tiene facturas asociadas
+      const facturas = await sql`
+        SELECT COUNT(*) as count 
+        FROM detalle_facturas 
+        WHERE parte_id = ${id}
       `
+      
+      const tieneFacturas = parseInt((facturas[0] as any).count) > 0
 
-      if (existingParte.length === 0) {
-        console.log(`Parte con ID ${id} no existe en la base de datos`)
-        return false
+      if (tieneFacturas) {
+        console.log(`Parte ${id} tiene facturas asociadas, se desactivará en lugar de eliminar`)
+        
+        // Desactivar la parte (soft delete)
+        const result = await sql`
+          UPDATE partes 
+          SET activo = false, 
+              fecha_actualizacion = NOW()
+          WHERE id = ${id}
+          RETURNING id
+        `
+        
+        return result.length > 0
+      } else {
+        console.log(`Parte ${id} no tiene facturas, se puede eliminar físicamente`)
+        
+        // Si no tiene facturas, eliminar físicamente
+        await sql`DELETE FROM partes WHERE id = ${id}`
+        
+        // Verificar eliminación
+        const verifyDeleted = await sql`SELECT id FROM partes WHERE id = ${id}`
+        return verifyDeleted.length === 0
       }
-
-      console.log(`Parte existe, procediendo con eliminación...`)
-
-      // Ejecutar DELETE - en Neon esto devuelve un array vacío si se elimina correctamente
-      const result = await sql`
-        DELETE FROM partes WHERE id = ${id}
-      `
-
-      console.log(`Resultado completo de DELETE:`, result)
-      console.log(`Tipo de resultado:`, typeof result)
-      console.log(`Es array:`, Array.isArray(result))
-
-      // ✅ CORREGIDO: Para Neon, verificar directamente si se eliminó
-      const verifyDeleted = await sql`
-        SELECT id FROM partes WHERE id = ${id}
-      `
-
-      const actuallyDeleted = verifyDeleted.length === 0
-      console.log(`Verificación post-eliminación: ${actuallyDeleted ? "eliminada" : "aún existe"}`)
-
-      return actuallyDeleted
     } catch (error) {
-      console.error(`Error eliminando parte ID ${id}:`, error)
-      throw new Error("Failed to delete parte")
+      console.error(`Error en soft delete para parte ID ${id}:`, error)
+      
+      // Si falla la eliminación física, intentar soft delete
+      try {
+        await sql`
+          UPDATE partes 
+          SET activo = false 
+          WHERE id = ${id}
+        `
+        return true
+      } catch (softDeleteError) {
+        throw new Error("No se pudo desactivar la parte")
+      }
+    }
+  }
+
+  // Reactivar una parte desactivada
+  static async reactivate(id: number): Promise<boolean> {
+    try {
+      const result = await sql`
+        UPDATE partes 
+        SET activo = true, 
+            fecha_actualizacion = NOW()
+        WHERE id = ${id}
+        RETURNING id
+      `
+      return result.length > 0
+    } catch (error) {
+      console.error(`Error reactivando parte ID ${id}:`, error)
+      return false
     }
   }
 
   static async count(): Promise<number> {
     const result = await sql`
-      SELECT COUNT(*) as count FROM partes
+      SELECT COUNT(*) as count FROM partes WHERE activo = true
     `
-    return Number.parseInt((result[0] as any).count)
+    return parseInt((result[0] as any).count)
   }
 
   static async getTotalValue(): Promise<number> {
     const result = await sql`
-      SELECT SUM(stock * precio) as total FROM partes
+      SELECT SUM(stock * precio) as total FROM partes WHERE activo = true
     `
-    return Number.parseFloat((result[0] as any).total || "0")
+    return parseFloat((result[0] as any).total || "0")
   }
 
   static async getCategories(): Promise<string[]> {
     const result = await sql`
-      SELECT DISTINCT categoria FROM partes ORDER BY categoria
+      SELECT DISTINCT categoria FROM partes WHERE activo = true ORDER BY categoria
     `
     return result.map((row: any) => row.categoria)
   }

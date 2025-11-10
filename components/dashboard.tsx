@@ -16,17 +16,19 @@ import {
   Box,
   Menu,
   X,
+  Receipt,
 } from "lucide-react"
 import type { AuthUser, DashboardStats } from "@/lib/types"
 import { InventoryView } from "./inventory-view"
 import { UsersView } from "./users-view"
+import { FacturacionView } from "./facturacion-view"
 
 interface DashboardProps {
   user: AuthUser
   onLogout: () => void
 }
 
-type ViewType = "dashboard" | "inventory" | "users" | "settings"
+type ViewType = "dashboard" | "inventory" | "facturacion" | "users" | "settings"
 
 export function Dashboard({ user, onLogout }: DashboardProps) {
   const [currentView, setCurrentView] = useState<ViewType>("dashboard")
@@ -53,6 +55,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
 
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "usuario"] },
+    { id: "facturacion", label: "Facturación", icon: Receipt, roles: ["admin", "usuario"] },
     { id: "inventory", label: "Inventario", icon: Package, roles: ["admin", "usuario"] },
     { id: "users", label: "Usuarios", icon: Users, roles: ["admin"] },
     { id: "settings", label: "Configuración", icon: Settings, roles: ["admin"] },
@@ -62,6 +65,8 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
 
   const renderContent = () => {
     switch (currentView) {
+      case "facturacion":
+        return <FacturacionView user={user} />
       case "inventory":
         return <InventoryView user={user} />
       case "users":
@@ -145,6 +150,13 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                   <CardDescription>Funciones principales del sistema</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  <Button
+                    onClick={() => setCurrentView("facturacion")}
+                    className="w-full justify-start bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800"
+                  >
+                    <Receipt className="h-4 w-4 mr-2" />
+                    Sistema de Facturación
+                  </Button>
                   <Button
                     onClick={() => setCurrentView("inventory")}
                     className="w-full justify-start bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800"

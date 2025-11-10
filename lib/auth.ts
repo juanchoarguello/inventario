@@ -1,10 +1,27 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { JwtService } from "@/lib/jwt"
-import type { AuthUser } from "@/lib/index"
+import type { AuthUser } from "@/lib/types"
 
 // Tipo para el contexto de Next.js 15
 type RouteContext = {
   params: Promise<Record<string, string | string[]>>
+}
+
+// Función helper para verificar autenticación (usada en clientes/proveedores)
+export async function verifyAuth(request: NextRequest): Promise<AuthUser | null> {
+  try {
+    const token = request.cookies.get("auth-token")?.value
+
+    if (!token) {
+      return null
+    }
+
+    const user = JwtService.verify(token)
+    return user
+  } catch (error) {
+    console.error("Auth verification error:", error)
+    return null
+  }
 }
 
 // Middleware para rutas SIN parámetros dinámicos

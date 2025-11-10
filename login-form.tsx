@@ -25,7 +25,7 @@ import {
   Zap,
 } from "lucide-react"
 import Image from "next/image"
-import type { Usuario } from "@/lib/database"
+import type { Usuario } from "@/lib/types"
 
 interface LoginFormProps {
   onLogin: (user: Usuario, token: string) => void
@@ -67,7 +67,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
   }
 
   const handleWhatsAppContact = () => {
-    window.open("https://wa.me/573152154826", "_blank")
+    window.open("https://wa.me/573187349421", "_blank")
   }
 
   const handlePhoneContact = () => {

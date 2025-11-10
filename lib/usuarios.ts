@@ -1,5 +1,5 @@
 import { sql } from "@/lib/database"
-import type { Usuario, CreateUserData } from "@/lib/index"
+import type { Usuario, CreateUserData } from "@/lib/types"
 
 /**
  * Repositorio para operaciones de usuarios en la base de datos
@@ -180,9 +180,11 @@ export class UsuariosRepository {
         UPDATE usuarios 
         SET activo = false 
         WHERE id = ${id}
+        RETURNING id
       `
 
-      return result.count > 0
+      // CORREGIDO: Usar result.length en vez de result.count
+      return result.length > 0
     } catch (error) {
       console.error("Error deleting user:", error)
       throw new Error("Failed to delete user")

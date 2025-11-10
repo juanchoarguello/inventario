@@ -21,6 +21,8 @@
     "class-variance-authority": "0.7.0",
     "clsx": "2.1.1",
     "jsonwebtoken": "9.0.2",
+    "jspdf": "^3.0.3",
+    "jspdf-autotable": "^5.0.2",
     "lucide-react": "0.446.0",
     "next": "15.0.3",
     "react": "18.3.1",

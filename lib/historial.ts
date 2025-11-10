@@ -105,3 +105,26 @@ export class HistorialRepository {
     }
   }
 }
+
+// Helper function para usar en las rutas
+export async function registrarAccion(params: {
+  usuario_id: number
+  accion: string
+  tabla_afectada: string
+  registro_id: string
+  datos_anteriores?: any
+  datos_nuevos?: any
+  direccion_ip?: string
+  user_agent?: string
+}): Promise<void> {
+  return HistorialRepository.registrarAccion(
+    params.usuario_id,
+    params.accion,
+    params.tabla_afectada,
+    params.registro_id,
+    params.datos_anteriores,
+    params.datos_nuevos,
+    params.direccion_ip,
+    params.user_agent
+  )
+}
